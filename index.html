@@ -356,6 +356,7 @@
         </select>
         <span id="instLoad" class="loadhint"></span>
         <button id="tryInstBtn" class="mini">Anhören</button>
+        <button id="retrySamplesBtn" class="mini">Aufnahmen neu laden</button>
       </div>
 
       <div class="sectionlabel" style="margin-top:4px;">Klang formen</div>
@@ -640,8 +641,53 @@ melFilter.connect(melFXIn);
    Fällt automatisch auf einen Synth zurück, wenn die
    Samples nicht geladen werden können.
    --------------------------------------------------------- */
-const SAMPLE_BASE = 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments@master/samples/';
+/* Mehrere Quellen, die erste erreichbare gewinnt. */
+const SAMPLE_BASES = [
+  'https://nbrosowsky.github.io/tonejs-instruments/samples/',
+  'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments@master/samples/',
+  'https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/'
+];
+let SAMPLE_BASE = null;
+let sampleSearchDone = false;
+
 function toSharp(n){ return n.replace('s','#'); }
+
+async function findSampleBase(){
+  for(const b of SAMPLE_BASES){
+    try{
+      const r = await fetch(b + 'piano/C4.mp3', {mode:'cors'});
+      if(r.ok){
+        const buf = await r.arrayBuffer();
+        if(buf.byteLength > 1000){ SAMPLE_BASE = b; break; }
+      }
+    }catch(e){ /* nächste Quelle */ }
+  }
+  sampleSearchDone = true;
+  if(SAMPLE_BASE){
+    Object.values(voiceCache).forEach(v=>{
+      if(v.def.sample && !v.sampler) attachSampler(v);
+    });
+  }
+  updateLoadHint();
+  return SAMPLE_BASE;
+}
+
+function attachSampler(v){
+  if(!SAMPLE_BASE || !v.def.sample || v.sampler) return;
+  const urls = {};
+  v.def.sample.notes.forEach(n=>{ urls[toSharp(n)] = n + '.mp3'; });
+  try{
+    v.failed = false;
+    v.sampler = new Tone.Sampler({
+      urls, baseUrl: SAMPLE_BASE + v.def.sample.folder + '/',
+      release: 1.1,
+      onload: ()=>{ v.ready = true; updateLoadHint(); },
+      onerror: ()=>{ v.failed = true; v.sampler = null; updateLoadHint(); }
+    });
+    v.sampler.volume.value = v.def.vol || -10;
+    v.sampler.connect(v.def.choir ? choirIn : melFilter);
+  }catch(e){ v.sampler = null; v.failed = true; }
+}
 
 /* Kinderchor: eigene Kette mit Vibrato und Vokalformanten */
 const choirVibrato = new Tone.Vibrato({frequency:5.2, depth:0.12});
@@ -811,21 +857,8 @@ function getVoice(kind){
   v.synth.volume.value = def.vol || -12;
   v.synth.connect(target);
 
-  if(def.sample){
-    const urls = {};
-    def.sample.notes.forEach(n=>{ urls[toSharp(n)] = n + '.mp3'; });
-    try{
-      v.sampler = new Tone.Sampler({
-        urls, baseUrl: SAMPLE_BASE + def.sample.folder + '/',
-        release: 1.1, curve:'exponential',
-        onload: ()=>{ v.ready = true; updateLoadHint(); },
-        onerror: ()=>{ v.failed = true; v.sampler = null; updateLoadHint(); }
-      });
-      v.sampler.volume.value = def.vol || -10;
-      v.sampler.connect(target);
-    }catch(e){ v.sampler = null; v.failed = true; }
-  }
   voiceCache[kind] = v;
+  if(def.sample) attachSampler(v);
   return v;
 }
 
@@ -846,10 +879,12 @@ function updateLoadHint(){
   const el = document.getElementById('instLoad');
   if(!el || !song) return;
   const v = voiceCache[editScene().instrument];
-  if(!v || !v.def.sample) { el.textContent = ''; return; }
-  if(v.ready) el.textContent = 'echte Aufnahme';
-  else if(v.failed) el.textContent = 'Aufnahme nicht erreichbar – Ersatzklang';
-  else el.textContent = 'lädt Aufnahme …';
+  if(!v || !v.def.sample){ el.textContent = 'Klangerzeugung'; return; }
+  if(v.ready)              el.textContent = 'echte Aufnahme';
+  else if(!sampleSearchDone) el.textContent = 'suche Aufnahmen …';
+  else if(!SAMPLE_BASE)    el.textContent = 'keine Aufnahmen erreichbar – Ersatzklang';
+  else if(v.failed)        el.textContent = 'Aufnahme fehlt – Ersatzklang';
+  else                     el.textContent = 'lädt Aufnahme …';
 }
 
 /* per-scene shaping */
@@ -1188,6 +1223,18 @@ MEL_SLIDERS.forEach(sl=>{
     markDirty();
   });
 });
+document.getElementById('retrySamplesBtn').addEventListener('click', async ()=>{
+  const el=document.getElementById('instLoad');
+  SAMPLE_BASE=null; sampleSearchDone=false;
+  Object.values(voiceCache).forEach(v=>{
+    if(v.sampler){ try{ v.sampler.dispose(); }catch(e){} }
+    v.sampler=null; v.ready=false; v.failed=false;
+  });
+  if(el) el.textContent='suche Aufnahmen …';
+  const b=await findSampleBase();
+  if(el && !b) el.textContent='keine Quelle erreichbar – Ersatzklang';
+});
+
 document.getElementById('tryInstBtn').addEventListener('click', async ()=>{
   primeAudioSync();
   if(!audioReady) await unlockAudio();
@@ -1967,6 +2014,7 @@ drawViz();
    ========================================================== */
 (function init(){
   cacheStepEls();
+  findSampleBase();
   const idx = loadIndex();
   if(idx.length){
     const raw = store.get('moosgrund:song:'+idx[0].id);
