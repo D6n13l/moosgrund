@@ -326,6 +326,7 @@
       <div class="trimrow" style="margin-bottom:13px;">
         <span>Anschlag <input type="range" id="melAtt" min="0" max="100" value="0"></span>
         <span>Ausklang <input type="range" id="melRel" min="0" max="100" value="50"></span>
+        <span>Elektronisch <input type="range" id="melElec" min="0" max="100" value="0"></span>
       </div>
 
       <div class="roll" id="melRoll"></div>
@@ -399,11 +400,33 @@
       <div class="grain"></div>
       <canvas id="viz"></canvas>
       <div class="btnrow" style="margin-top:11px;">
-        <button id="vizModeBtn">Motiv: Wachstum</button>
+        <span class="ctl">Motiv
+          <select id="vizSelect">
+            <option value="mandala">Mandala</option>
+            <option value="kaleidoskop">Kaleidoskop</option>
+            <option value="bluete">Blüten</option>
+            <option value="aurora">Nordlicht</option>
+            <option value="wasser">Wasser</option>
+            <option value="ringe">Jahresringe</option>
+            <option value="schwarm">Schwarm</option>
+          </select>
+        </span>
+        <span class="ctl">Farben
+          <select id="palSelect">
+            <option value="prisma">Prisma</option>
+            <option value="wald">Wald</option>
+            <option value="herbst">Herbst</option>
+            <option value="wasser">Tiefsee</option>
+            <option value="daemm">Dämmerung</option>
+          </select>
+        </span>
+      </div>
+      <div class="btnrow">
+        <button id="vizAutoBtn">Wechsel: aus</button>
         <button id="fullscreenBtn">Vollbild</button>
         <button id="saveVizBtn">Bild sichern</button>
       </div>
-      <div class="hint">Tiefe Töne treiben den Stamm, Mitten die Äste, Höhen das Laub.</div>
+      <div class="hint">Sieben Motive, fünf Farbwelten. „Wechsel" schaltet das Motiv im Lauf automatisch weiter.</div>
     </div>
   </div>
 
@@ -545,74 +568,99 @@ const bassSynth = new Tone.MonoSynth({
 });
 bassSynth.connect(bassFilter); bassSynth.volume.value = -8;
 
-/* shaping chain: instrument -> filter -> gain -> reverb -> master */
+/* chain: instrument -> filter -> [natural | elektronisch] -> gain -> reverb -> master
+   The electronic character is a separate path, crossfaded in with a slider,
+   so every instrument starts out acoustic and stays that way at 0. */
 const melodyReverb = new Tone.Reverb({decay:2.6, wet:0.26}).connect(masterGain);
 const melGain = new Tone.Gain(1).connect(melodyReverb);
-const melFilter = new Tone.Filter(9000,'lowpass').connect(melGain);
+const melBlend = new Tone.CrossFade(0).connect(melGain);   // a = natur, b = elektronisch
+
+const melNatural = new Tone.Gain(1);
+melNatural.connect(melBlend.a);
+
+const melDrive  = new Tone.Distortion({distortion:0.42, oversample:'2x'});
+const melChorus = new Tone.Chorus({frequency:1.6, delayTime:3.2, depth:0.7}).start();
+const melBite   = new Tone.Filter({frequency:2400, type:'lowpass', Q:6});
+melDrive.chain(melBite, melChorus, melBlend.b);
+
+const melFXIn = new Tone.Gain(1);
+melFXIn.connect(melDrive);
+
+/* soft body filter every instrument passes through */
+const melFilter = new Tone.Filter(7200,'lowpass');
+melFilter.connect(melNatural);
+melFilter.connect(melFXIn);
 
 const INSTRUMENTS = {
-  /* Tasten */
-  piano:{voice:Tone.Synth, vol:-10, opts:{oscillator:{type:'triangle'},
-    envelope:{attack:0.005, decay:0.9, sustain:0.12, release:1.1}}},
-  epiano:{voice:Tone.FMSynth, vol:-14, opts:{harmonicity:3, modulationIndex:6,
-    oscillator:{type:'sine'}, envelope:{attack:0.004, decay:1.1, sustain:0.1, release:1.2},
+  /* ---- Tasten ---- */
+  piano:{voice:Tone.FMSynth, vol:-11, opts:{harmonicity:2.02, modulationIndex:2.4,
+    oscillator:{type:'triangle'}, envelope:{attack:0.006, decay:1.4, sustain:0.06, release:1.3},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.35, sustain:0, release:0.4}}},
+  epiano:{voice:Tone.FMSynth, vol:-13, opts:{harmonicity:3.01, modulationIndex:3.2,
+    oscillator:{type:'sine'}, envelope:{attack:0.005, decay:1.6, sustain:0.08, release:1.4},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.005, decay:0.5, sustain:0, release:0.5}}},
+  orgel:{voice:Tone.AMSynth, vol:-17, opts:{harmonicity:2.001,
+    oscillator:{type:'sine'}, envelope:{attack:0.04, decay:0.06, sustain:1, release:0.22},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.05, decay:0.1, sustain:1, release:0.2}}},
+  cembalo:{voice:Tone.FMSynth, vol:-15, opts:{harmonicity:3.5, modulationIndex:4,
+    oscillator:{type:'triangle'}, envelope:{attack:0.002, decay:0.7, sustain:0.01, release:0.5},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.25, sustain:0, release:0.3}}},
+
+  /* ---- Saiten ---- */
+  gitarre:{voice:Tone.FMSynth, vol:-12, opts:{harmonicity:1.99, modulationIndex:3,
+    oscillator:{type:'triangle'}, envelope:{attack:0.005, decay:1.1, sustain:0.04, release:0.9},
     modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.4, sustain:0, release:0.4}}},
-  orgel:{voice:Tone.AMSynth, vol:-17, opts:{harmonicity:2.005,
-    oscillator:{type:'sine'}, envelope:{attack:0.02, decay:0.05, sustain:1, release:0.15},
-    modulation:{type:'sine'}}},
-  cembalo:{voice:Tone.Synth, vol:-14, opts:{oscillator:{type:'sawtooth'},
-    envelope:{attack:0.001, decay:0.5, sustain:0.02, release:0.4}}},
+  harfe:{voice:Tone.FMSynth, vol:-11, opts:{harmonicity:2.01, modulationIndex:1.8,
+    oscillator:{type:'sine'}, envelope:{attack:0.004, decay:1.8, sustain:0.02, release:1.6},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.6, sustain:0, release:0.6}}},
+  streicher:{voice:Tone.Synth, vol:-19, opts:{oscillator:{type:'fattriangle', count:3, spread:14},
+    envelope:{attack:0.28, decay:0.4, sustain:0.8, release:1.5}}},
+  cello:{voice:Tone.Synth, vol:-16, opts:{oscillator:{type:'fattriangle', count:2, spread:9},
+    envelope:{attack:0.13, decay:0.35, sustain:0.75, release:1.0}}},
+  sitar:{voice:Tone.FMSynth, vol:-16, opts:{harmonicity:2.5, modulationIndex:6,
+    oscillator:{type:'triangle'}, envelope:{attack:0.005, decay:1.3, sustain:0.06, release:1.1},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.01, decay:0.55, sustain:0.05, release:0.5}}},
 
-  /* Saiten */
-  gitarre:{voice:Tone.Synth, vol:-12, opts:{oscillator:{type:'sawtooth'},
-    envelope:{attack:0.004, decay:0.7, sustain:0.06, release:0.6}}},
-  harfe:{voice:Tone.Synth, vol:-11, opts:{oscillator:{type:'sine'},
-    envelope:{attack:0.003, decay:1.3, sustain:0.03, release:1.2}}},
-  streicher:{voice:Tone.Synth, vol:-18, opts:{oscillator:{type:'fatsawtooth', count:3, spread:20},
-    envelope:{attack:0.35, decay:0.3, sustain:0.85, release:1.4}}},
-  cello:{voice:Tone.Synth, vol:-16, opts:{oscillator:{type:'fatsawtooth', count:2, spread:14},
-    envelope:{attack:0.14, decay:0.25, sustain:0.8, release:0.9}}},
-  sitar:{voice:Tone.FMSynth, vol:-16, opts:{harmonicity:2.5, modulationIndex:12,
-    oscillator:{type:'sawtooth'}, envelope:{attack:0.004, decay:1.1, sustain:0.08, release:1.0},
-    modulation:{type:'sawtooth'}, modulationEnvelope:{attack:0.01, decay:0.5, sustain:0.1, release:0.5}}},
-
-  /* Blas */
-  trompete:{voice:Tone.FMSynth, vol:-17, opts:{harmonicity:1.4, modulationIndex:9,
-    oscillator:{type:'sawtooth'}, envelope:{attack:0.06, decay:0.2, sustain:0.75, release:0.35},
-    modulation:{type:'square'}, modulationEnvelope:{attack:0.1, decay:0.2, sustain:0.5, release:0.3}}},
-  posaune:{voice:Tone.FMSynth, vol:-16, opts:{harmonicity:0.5, modulationIndex:7,
-    oscillator:{type:'sawtooth'}, envelope:{attack:0.09, decay:0.2, sustain:0.8, release:0.4},
-    modulation:{type:'triangle'}, modulationEnvelope:{attack:0.12, decay:0.2, sustain:0.6, release:0.3}}},
-  klarinette:{voice:Tone.Synth, vol:-16, opts:{oscillator:{type:'square'},
-    envelope:{attack:0.07, decay:0.12, sustain:0.85, release:0.35}}},
-  floete:{voice:Tone.Synth, vol:-12, opts:{oscillator:{type:'sine'},
-    envelope:{attack:0.12, decay:0.15, sustain:0.8, release:0.5}}},
+  /* ---- Blas ---- */
+  trompete:{voice:Tone.FMSynth, vol:-17, opts:{harmonicity:1.005, modulationIndex:4.5,
+    oscillator:{type:'triangle'}, envelope:{attack:0.07, decay:0.25, sustain:0.7, release:0.4},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.09, decay:0.25, sustain:0.5, release:0.35}}},
+  posaune:{voice:Tone.FMSynth, vol:-16, opts:{harmonicity:0.5, modulationIndex:3.6,
+    oscillator:{type:'triangle'}, envelope:{attack:0.1, decay:0.25, sustain:0.78, release:0.45},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.12, decay:0.25, sustain:0.55, release:0.35}}},
+  klarinette:{voice:Tone.FMSynth, vol:-15, opts:{harmonicity:3, modulationIndex:1.6,
+    oscillator:{type:'sine'}, envelope:{attack:0.08, decay:0.15, sustain:0.82, release:0.4},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.2, sustain:0.6, release:0.3}}},
+  floete:{voice:Tone.Synth, vol:-13, opts:{oscillator:{type:'sine'},
+    envelope:{attack:0.13, decay:0.18, sustain:0.78, release:0.55}}},
   panfloete:{voice:Tone.Synth, vol:-13, opts:{oscillator:{type:'triangle'},
-    envelope:{attack:0.05, decay:0.25, sustain:0.55, release:0.7}}},
+    envelope:{attack:0.06, decay:0.28, sustain:0.5, release:0.75}}},
 
-  /* Schlag & Klang */
-  marimba:{voice:Tone.Synth, vol:-6, opts:{oscillator:{type:'sine'},
-    envelope:{attack:0.002, decay:0.45, sustain:0.02, release:0.5}}},
-  vibraphon:{voice:Tone.FMSynth, vol:-13, opts:{harmonicity:2, modulationIndex:4,
-    oscillator:{type:'sine'}, envelope:{attack:0.003, decay:1.4, sustain:0.05, release:1.6},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.003, decay:0.8, sustain:0, release:0.8}}},
-  kalimba:{voice:Tone.Synth, vol:-8, opts:{oscillator:{type:'triangle'},
-    envelope:{attack:0.001, decay:0.32, sustain:0.01, release:0.35}}},
-  glocke:{voice:Tone.FMSynth, vol:-15, opts:{harmonicity:3.01, modulationIndex:14,
-    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:1.6, sustain:0, release:1.8},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.6, sustain:0, release:0.6}}},
-  celesta:{voice:Tone.FMSynth, vol:-14, opts:{harmonicity:4.02, modulationIndex:8,
-    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:0.9, sustain:0, release:1.0},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.35, sustain:0, release:0.4}}},
+  /* ---- Schlag & Klang ---- */
+  marimba:{voice:Tone.FMSynth, vol:-9, opts:{harmonicity:4.01, modulationIndex:2,
+    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:0.55, sustain:0.005, release:0.6},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.2, sustain:0, release:0.25}}},
+  vibraphon:{voice:Tone.FMSynth, vol:-12, opts:{harmonicity:4.0, modulationIndex:2.4,
+    oscillator:{type:'sine'}, envelope:{attack:0.003, decay:1.8, sustain:0.03, release:2.0},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.003, decay:0.9, sustain:0, release:0.9}}},
+  kalimba:{voice:Tone.FMSynth, vol:-9, opts:{harmonicity:3.02, modulationIndex:2.6,
+    oscillator:{type:'triangle'}, envelope:{attack:0.001, decay:0.4, sustain:0.005, release:0.45},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.001, decay:0.15, sustain:0, release:0.2}}},
+  glocke:{voice:Tone.FMSynth, vol:-15, opts:{harmonicity:3.01, modulationIndex:7,
+    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:2.2, sustain:0, release:2.4},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.8, sustain:0, release:0.8}}},
+  celesta:{voice:Tone.FMSynth, vol:-13, opts:{harmonicity:4.02, modulationIndex:3.4,
+    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:1.1, sustain:0, release:1.2},
+    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.4, sustain:0, release:0.45}}},
 
-  /* Synth */
-  lead:{voice:Tone.Synth, vol:-15, opts:{oscillator:{type:'square'},
+  /* ---- Synth (hier ist elektronisch der Ausgangspunkt) ---- */
+  lead:{voice:Tone.Synth, vol:-16, opts:{oscillator:{type:'square'},
     envelope:{attack:0.01, decay:0.2, sustain:0.6, release:0.4}}},
   pad:{voice:Tone.Synth, vol:-19, opts:{oscillator:{type:'fatsine', count:3, spread:30},
     envelope:{attack:0.6, decay:0.4, sustain:0.9, release:2.2}}},
   chor:{voice:Tone.AMSynth, vol:-16, opts:{harmonicity:2, oscillator:{type:'sine'},
     envelope:{attack:0.4, decay:0.3, sustain:0.9, release:1.6}, modulation:{type:'triangle'}}},
-  tropfen:{voice:Tone.FMSynth, vol:-14, opts:{harmonicity:5, modulationIndex:10,
+  tropfen:{voice:Tone.FMSynth, vol:-14, opts:{harmonicity:5, modulationIndex:8,
     oscillator:{type:'sine'}, envelope:{attack:0.001, decay:0.5, sustain:0, release:0.6},
     modulation:{type:'sine'}, modulationEnvelope:{attack:0.001, decay:0.2, sustain:0, release:0.2}}}
 };
@@ -629,14 +677,19 @@ function getInstrument(kind){
 }
 
 /* per-scene shaping */
-function defaultMelSettings(){ return {vol:0, verb:26, tone:72, oct:0, att:0, rel:50}; }
+function defaultMelSettings(){
+  return {vol:0, verb:26, tone:72, oct:0, att:0, rel:50, elec:0};
+}
 let lastShaped = null;
 function applyMelSettings(scene, force){
   if(!scene) return;
-  const key = scene.id + JSON.stringify(scene.melSettings) + scene.instrument;
+  if(!scene.melSettings) scene.melSettings = defaultMelSettings();
+  const st = scene.melSettings;
+  if(st.elec === undefined) st.elec = 0;
+  const key = scene.id + scene.instrument + JSON.stringify(st);
   if(!force && key === lastShaped) return;
   lastShaped = key;
-  const st = scene.melSettings || defaultMelSettings();
+
   const def = INSTRUMENTS[scene.instrument] || INSTRUMENTS.piano;
   const baseAtt = def.opts.envelope ? def.opts.envelope.attack : 0.01;
   const baseRel = def.opts.envelope ? def.opts.envelope.release : 0.6;
@@ -647,10 +700,22 @@ function applyMelSettings(scene, force){
       detune: st.oct * 1200
     });
   }catch(e){}
+
   melFilter.frequency.rampTo(280 * Math.pow(45, st.tone/100), 0.05);
   melGain.gain.rampTo(Tone.dbToGain(st.vol), 0.05);
   melodyReverb.wet.rampTo(st.verb/100, 0.05);
+
+  /* electronic path grows with the slider */
+  const e = st.elec/100;
+  melBlend.fade.rampTo(e, 0.08);
+  melDrive.distortion = 0.12 + e*0.6;
+  melBite.frequency.rampTo(1200 + e*5200, 0.08);
+  melBite.Q.rampTo(1 + e*9, 0.08);
+  melChorus.depth = 0.2 + e*0.6;
 }
+
+/* small velocity variation so repeated notes don't sound machine-stamped */
+function humanVel(){ return 0.72 + Math.random()*0.28; }
 
 /* ==========================================================
    SONG MODEL
@@ -743,7 +808,7 @@ Tone.Transport.scheduleRepeat((time)=>{
   if(scene.bass[step]) bassSynth.triggerAttackRelease(scene.bass[step], '8n', time);
   if(scene.mel[step]){
     applyMelSettings(scene);
-    getInstrument(scene.instrument).triggerAttackRelease(scene.mel[step], '8n', time);
+    getInstrument(scene.instrument).triggerAttackRelease(scene.mel[step], '8n', time, humanVel());
   }
 
   const every = Number(document.getElementById('vocalEvery').value);
@@ -754,7 +819,7 @@ Tone.Transport.scheduleRepeat((time)=>{
     currentStep = step; soundingSceneId = scene.id;
     updatePlayheads(); updateTimelineCursor(localTick);
     if(blockIdx>=0) highlightBlock(blockIdx);
-    renderSceneChips();
+    updateSceneChipHighlight();
   }, time);
 
   tick++;
@@ -765,7 +830,7 @@ function stopPlayback(){
   isPlaying=false; tick=0; currentStep=0; soundingSceneId=null;
   const b=document.getElementById('playBtn');
   b.textContent='Start'; b.classList.remove('playing');
-  updatePlayheads(); renderSceneChips(); highlightBlock(-1);
+  updatePlayheads(); updateSceneChipHighlight(); highlightBlock(-1);
   document.getElementById('tlCursor').style.left='0';
 }
 document.getElementById('playBtn').addEventListener('click', async ()=>{
@@ -813,6 +878,7 @@ function renderSceneChips(){
     song.scenes.forEach(s=>{
       const b=document.createElement('button');
       b.className='scene-chip'+(s.id===editSceneId?' active':'')+(s.id===soundingSceneId?' sounding':'');
+      b.dataset.scene = s.id;
       b.textContent=s.name;
       b.addEventListener('click', ()=>{ editSceneId=s.id; refreshAllEditors(); });
       b.addEventListener('dblclick', ()=>{
@@ -829,6 +895,16 @@ function renderSceneChips(){
       refreshAllEditors(); renderArrangement();
     });
     el.appendChild(add);
+  });
+}
+/* lightweight per-tick highlight — no rebuild, no listener churn */
+function updateSceneChipHighlight(){
+  ['scenesBeats','scenesBass','scenesMel'].forEach(cid=>{
+    document.getElementById(cid).querySelectorAll('.scene-chip[data-scene]').forEach(chip=>{
+      const id = chip.dataset.scene;
+      chip.classList.toggle('active', id===editSceneId);
+      chip.classList.toggle('sounding', id===soundingSceneId);
+    });
   });
 }
 
@@ -917,7 +993,8 @@ document.getElementById('melInstrument').addEventListener('change', e=>{
 const MEL_SLIDERS = [
   {id:'melVol',  key:'vol'},  {id:'melVerb', key:'verb'},
   {id:'melTone', key:'tone'}, {id:'melOct',  key:'oct'},
-  {id:'melAtt',  key:'att'},  {id:'melRel',  key:'rel'}
+  {id:'melAtt',  key:'att'},  {id:'melRel',  key:'rel'},
+  {id:'melElec', key:'elec'}
 ];
 MEL_SLIDERS.forEach(sl=>{
   document.getElementById(sl.id).addEventListener('input', e=>{
@@ -952,14 +1029,25 @@ function refreshAllEditors(){
   syncMelSliders();
   applyMelSettings(editScene(), true);
 }
+let stepDrumEls = [], stepRollEls = [], lastLitStep = -1;
+function cacheStepEls(){
+  stepDrumEls = []; stepRollEls = [];
+  for(let s=0;s<STEPS;s++){
+    stepDrumEls[s] = [...document.querySelectorAll('.drumstep[data-step="'+s+'"]')];
+    stepRollEls[s] = [...document.querySelectorAll('.roll-cell[data-step="'+s+'"]')];
+  }
+}
 function updatePlayheads(){
   const show = isPlaying && (playMode==='scene' || soundingSceneId===editSceneId);
-  document.querySelectorAll('.drumstep').forEach(el=>{
-    el.classList.toggle('playhead', show && Number(el.dataset.step)===currentStep);
-  });
-  document.querySelectorAll('.roll-cell').forEach(el=>{
-    el.classList.toggle('playcol', show && Number(el.dataset.step)===currentStep);
-  });
+  if(lastLitStep>=0 && stepDrumEls[lastLitStep]){
+    stepDrumEls[lastLitStep].forEach(el=>el.classList.remove('playhead'));
+    stepRollEls[lastLitStep].forEach(el=>el.classList.remove('playcol'));
+  }
+  lastLitStep = -1;
+  if(!show || !stepDrumEls[currentStep]) return;
+  stepDrumEls[currentStep].forEach(el=>el.classList.add('playhead'));
+  stepRollEls[currentStep].forEach(el=>el.classList.add('playcol'));
+  lastLitStep = currentStep;
 }
 
 /* ==========================================================
@@ -1190,6 +1278,8 @@ function loadSongInto(obj){
   song = obj;
   song.scenes.forEach(s=>{
     if(!s.melSettings) s.melSettings = defaultMelSettings();
+    const d = defaultMelSettings();
+    Object.keys(d).forEach(k=>{ if(s.melSettings[k]===undefined) s.melSettings[k]=d[k]; });
     if(!INSTRUMENTS[s.instrument]) s.instrument = 'piano';
   });
   editSceneId = song.scenes[0].id;
@@ -1296,25 +1386,59 @@ window.addEventListener('beforeunload', e=>{ if(dirty){ e.preventDefault(); e.re
 */
 
 /* ==========================================================
-   VISUALIZER
+   VISUALIZER — sieben Motive, kräftige Farben
    ========================================================== */
 const vizCanvas=document.getElementById('viz');
 const vctx=vizCanvas.getContext('2d');
-let vizMode=0;
-const VIZ_MODES=['Wachstum','Wasser','Ringe'];
+const waveAnalyser = new Tone.Analyser('waveform', 256);
+masterGain.connect(waveAnalyser);
+
+const VIZ_MODES = [
+  {id:'mandala',     name:'Mandala'},
+  {id:'kaleidoskop', name:'Kaleidoskop'},
+  {id:'bluete',      name:'Blüten'},
+  {id:'aurora',      name:'Nordlicht'},
+  {id:'wasser',      name:'Wasser'},
+  {id:'ringe',       name:'Jahresringe'},
+  {id:'schwarm',     name:'Schwarm'}
+];
+const PALETTES = {
+  wald:   {name:'Wald',      base:95,  span:120, bg:'#0c1410'},
+  herbst: {name:'Herbst',    base:8,   span:70,  bg:'#150c08'},
+  wasser: {name:'Tiefsee',   base:175, span:110, bg:'#07101a'},
+  daemm:  {name:'Dämmerung', base:275, span:150, bg:'#120a18'},
+  prisma: {name:'Prisma',    base:0,   span:360, bg:'#0b0b10'}
+};
+let vizMode='mandala', vizPalette='prisma', vizAuto=false;
+
+function pal(){ return PALETTES[vizPalette]; }
+function hueAt(x){ const p=pal(); return (p.base + x*p.span) % 360; }
+function col(x, l, a){ return 'hsla('+hueAt(x)+',85%,'+l+'%,'+a+')'; }
+
 function resizeViz(){
   const rect=vizCanvas.getBoundingClientRect();
   const dpr=Math.min(window.devicePixelRatio||1,2);
   if(rect.width===0) return;
   vizCanvas.width=rect.width*dpr; vizCanvas.height=rect.height*dpr;
-  vctx.fillStyle='#f6f7ee'; vctx.fillRect(0,0,vizCanvas.width,vizCanvas.height);
+  clearViz();
+}
+function clearViz(){
+  vctx.globalCompositeOperation='source-over';
+  vctx.fillStyle=pal().bg;
+  vctx.fillRect(0,0,vizCanvas.width,vizCanvas.height);
 }
 window.addEventListener('resize', resizeViz);
 setTimeout(resizeViz,80);
-document.getElementById('vizModeBtn').addEventListener('click', ()=>{
-  vizMode=(vizMode+1)%VIZ_MODES.length;
-  document.getElementById('vizModeBtn').textContent='Motiv: '+VIZ_MODES[vizMode];
-  vctx.fillStyle='#f6f7ee'; vctx.fillRect(0,0,vizCanvas.width,vizCanvas.height);
+
+document.getElementById('vizSelect').addEventListener('change', e=>{
+  vizMode=e.target.value; petals.length=0; ripples.length=0; blooms.length=0; clearViz();
+});
+document.getElementById('palSelect').addEventListener('change', e=>{
+  vizPalette=e.target.value; clearViz();
+});
+document.getElementById('vizAutoBtn').addEventListener('click', e=>{
+  vizAuto=!vizAuto;
+  e.target.textContent = vizAuto ? 'Wechsel: an' : 'Wechsel: aus';
 });
 document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
   if(vizCanvas.requestFullscreen) vizCanvas.requestFullscreen();
@@ -1322,94 +1446,344 @@ document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
 });
 document.getElementById('saveVizBtn').addEventListener('click', ()=>{
   const a=document.createElement('a');
-  a.download='moosgrund.png'; a.href=vizCanvas.toDataURL('image/png'); a.click();
+  a.download='moosgrund-'+vizMode+'.png'; a.href=vizCanvas.toDataURL('image/png'); a.click();
 });
+
 function avg(arr,from,to){
   let s=0,n=0;
   for(let i=from;i<to&&i<arr.length;i++){ s+=arr[i]; n++; }
   return n?s/n:-100;
 }
-let vt=0; const ripples=[];
+function centroid(fft){
+  let num=0, den=0;
+  for(let i=0;i<fft.length;i++){
+    const m=Tone.dbToGain(fft[i]);
+    num+=i*m; den+=m;
+  }
+  return den>0 ? (num/den)/fft.length : 0.3;
+}
+
+let vt=0, autoTimer=0;
+const ripples=[], petals=[], blooms=[];
+
+function vizVisible(){
+  return document.getElementById('panel-bild').classList.contains('active')
+      || document.fullscreenElement===vizCanvas;
+}
+
 function drawViz(){
   requestAnimationFrame(drawViz);
+  if(!vizVisible()) return;                 // spart Rechenzeit in anderen Reitern
   const w=vizCanvas.width,h=vizCanvas.height;
   if(!w||!h) return;
+
   const fft=analyser.getValue();
+  const wave=waveAnalyser.getValue();
   const bassE=Tone.dbToGain(avg(fft,0,8));
-  const midE=Tone.dbToGain(avg(fft,8,40));
+  const midE =Tone.dbToGain(avg(fft,8,40));
   const highE=Tone.dbToGain(avg(fft,40,fft.length));
+  const bright=centroid(fft);
   vt+=0.01;
-  if(vizMode===0) drawGrowth(w,h,bassE,midE,highE);
-  else if(vizMode===1) drawWater(w,h,bassE,midE,highE);
-  else drawRings(w,h,bassE,midE,highE,fft);
+
+  if(vizAuto){
+    autoTimer++;
+    if(autoTimer>900){
+      autoTimer=0;
+      const i=VIZ_MODES.findIndex(m=>m.id===vizMode);
+      vizMode=VIZ_MODES[(i+1)%VIZ_MODES.length].id;
+      document.getElementById('vizSelect').value=vizMode;
+      clearViz();
+    }
+  }
+
+  const E={bass:bassE, mid:midE, high:highE, bright:bright, fft:fft, wave:wave};
+  if(vizMode==='mandala')          drawMandala(w,h,E);
+  else if(vizMode==='kaleidoskop') drawKaleido(w,h,E);
+  else if(vizMode==='bluete')      drawBlueten(w,h,E);
+  else if(vizMode==='aurora')      drawAurora(w,h,E);
+  else if(vizMode==='wasser')      drawWasser(w,h,E);
+  else if(vizMode==='ringe')       drawRinge(w,h,E);
+  else                             drawSchwarm(w,h,E);
 }
-function drawGrowth(w,h,bassE,midE,highE){
-  vctx.fillStyle='rgba(246,247,238,0.12)'; vctx.fillRect(0,0,w,h);
-  const trunkH=h*0.2+bassE*h*1.7;
-  vctx.save(); vctx.translate(w/2,h);
-  branch(0,0,-Math.PI/2,Math.min(trunkH,h*0.42),5,midE,highE);
+
+function fade(w,h,amount){
+  vctx.globalCompositeOperation='source-over';
+  const p=pal();
+  const r=parseInt(p.bg.slice(1,3),16), g=parseInt(p.bg.slice(3,5),16), b=parseInt(p.bg.slice(5,7),16);
+  vctx.fillStyle='rgba('+r+','+g+','+b+','+amount+')';
+  vctx.fillRect(0,0,w,h);
+}
+
+/* ---------- 1. Mandala ---------- */
+function drawMandala(w,h,E){
+  fade(w,h,0.10);
+  const cx=w/2, cy=h/2, dpr=Math.min(window.devicePixelRatio||1,2);
+  const maxR=Math.min(w,h)*0.46;
+  const seg=12;
+  const fft=E.fft, bins=48;
+  vctx.save();
+  vctx.translate(cx,cy);
+  vctx.rotate(vt*0.08 + E.bass*0.5);
+  vctx.globalCompositeOperation='lighter';
+
+  for(let s=0;s<seg;s++){
+    vctx.save();
+    vctx.rotate((Math.PI*2/seg)*s);
+    for(let i=0;i<bins;i++){
+      const mag=Tone.dbToGain(fft[i]||-100);
+      if(mag<0.0015) continue;
+      const r0=maxR*0.13 + (i/bins)*maxR*0.62;
+      const len=mag*maxR*2.4;
+      const spreadA=0.045+mag*1.1;
+      const hueX=(i/bins*0.7 + E.bright*0.3);
+      vctx.beginPath();
+      vctx.moveTo(0,-r0);
+      vctx.quadraticCurveTo(Math.sin(spreadA)*(r0+len)*0.5, -(r0+len)*0.72,
+                            0, -(r0+len));
+      vctx.quadraticCurveTo(-Math.sin(spreadA)*(r0+len)*0.5, -(r0+len)*0.72,
+                            0, -r0);
+      vctx.fillStyle=col(hueX, 42+mag*260, 0.10+mag*7);
+      vctx.fill();
+      vctx.strokeStyle=col(hueX+0.08, 62+mag*180, 0.22+mag*9);
+      vctx.lineWidth=(0.7+mag*7)*dpr;
+      vctx.stroke();
+    }
+    vctx.restore();
+  }
+
+  // Ornamentkranz aus der Wellenform
+  const wave=E.wave;
+  vctx.beginPath();
+  for(let i=0;i<wave.length;i++){
+    const a=(i/wave.length)*Math.PI*2;
+    const r=maxR*0.80 + wave[i]*maxR*0.30;
+    const x=Math.cos(a)*r, y=Math.sin(a)*r;
+    if(i===0) vctx.moveTo(x,y); else vctx.lineTo(x,y);
+  }
+  vctx.closePath();
+  vctx.strokeStyle=col(E.bright,70,0.55);
+  vctx.lineWidth=1.6*dpr;
+  vctx.stroke();
+
+  // Kern
+  const cr=maxR*0.09 + E.bass*maxR*0.5;
+  const grd=vctx.createRadialGradient(0,0,0,0,0,Math.max(1,cr));
+  grd.addColorStop(0, col(E.bright+0.5, 88, 0.85));
+  grd.addColorStop(0.6, col(E.bright, 58, 0.35));
+  grd.addColorStop(1, col(E.bright, 40, 0));
+  vctx.fillStyle=grd;
+  vctx.beginPath(); vctx.arc(0,0,Math.max(1,cr),0,Math.PI*2); vctx.fill();
   vctx.restore();
 }
-function branch(x,y,angle,len,depth,midE,highE){
-  if(depth<=0||len<3) return;
-  const x2=x+Math.cos(angle)*len, y2=y+Math.sin(angle)*len;
+
+/* ---------- 2. Kaleidoskop ---------- */
+function drawKaleido(w,h,E){
+  fade(w,h,0.07);
+  const cx=w/2, cy=h/2, dpr=Math.min(window.devicePixelRatio||1,2);
+  const seg=8, maxR=Math.min(w,h)*0.48;
+  if(E.mid>0.004 || E.high>0.003){
+    petals.push({
+      r: maxR*(0.15+Math.random()*0.7),
+      a: Math.random()*Math.PI*2,
+      s: 3+Math.random()*10 + E.mid*220,
+      hue: Math.random()*0.6 + E.bright*0.4,
+      life: 1,
+      spin: (Math.random()-0.5)*0.03
+    });
+  }
+  vctx.save(); vctx.translate(cx,cy);
+  vctx.globalCompositeOperation='lighter';
+  for(let i=petals.length-1;i>=0;i--){
+    const p=petals[i];
+    p.life-=0.006; p.a+=p.spin; p.r+=0.35;
+    if(p.life<=0){ petals.splice(i,1); continue; }
+    for(let s=0;s<seg;s++){
+      vctx.save();
+      vctx.rotate((Math.PI*2/seg)*s + vt*0.05);
+      if(s%2) vctx.scale(1,-1);
+      const x=Math.cos(p.a)*p.r, y=Math.sin(p.a)*p.r;
+      const grd=vctx.createRadialGradient(x,y,0,x,y,p.s);
+      grd.addColorStop(0, col(p.hue, 75, p.life*0.75));
+      grd.addColorStop(1, col(p.hue+0.15, 50, 0));
+      vctx.fillStyle=grd;
+      vctx.beginPath(); vctx.arc(x,y,p.s,0,Math.PI*2); vctx.fill();
+      vctx.restore();
+    }
+  }
+  if(petals.length>150) petals.splice(0, petals.length-150);
+  vctx.restore();
+}
+
+/* ---------- 3. Blüten ---------- */
+function drawBlueten(w,h,E){
+  fade(w,h,0.055);
   const dpr=Math.min(window.devicePixelRatio||1,2);
-  vctx.strokeStyle = depth>2 ? 'rgba(107,88,67,'+(0.3+midE*3)+')'
-                             : 'rgba(93,124,74,'+(0.28+highE*6)+')';
-  vctx.lineWidth=depth*0.9*dpr;
-  vctx.beginPath(); vctx.moveTo(x,y); vctx.lineTo(x2,y2); vctx.stroke();
-  const spread=0.3+midE*1.5+Math.sin(vt*0.7+depth)*0.08;
-  branch(x2,y2,angle-spread,len*0.72,depth-1,midE,highE);
-  branch(x2,y2,angle+spread,len*0.72,depth-1,midE,highE);
-  if(depth===1&&highE>0.004){
-    vctx.fillStyle='rgba(176,138,60,'+Math.min(0.7,highE*36)+')';
-    vctx.beginPath(); vctx.arc(x2,y2,2+highE*85,0,Math.PI*2); vctx.fill();
+  if(E.bass>0.055 && Math.random()>0.5){
+    blooms.push({x:Math.random()*w, y:Math.random()*h,
+      petals:5+Math.floor(Math.random()*6), size:0, max:20+Math.random()*70+E.bass*260,
+      hue:Math.random(), rot:Math.random()*Math.PI, life:1, grow:1.5+Math.random()*2.5});
+  }
+  vctx.globalCompositeOperation='lighter';
+  for(let i=blooms.length-1;i>=0;i--){
+    const b=blooms[i];
+    b.size=Math.min(b.max, b.size+b.grow);
+    b.rot+=0.004;
+    b.life-=0.0055;
+    if(b.life<=0){ blooms.splice(i,1); continue; }
+    vctx.save(); vctx.translate(b.x,b.y); vctx.rotate(b.rot);
+    for(let p=0;p<b.petals;p++){
+      vctx.save();
+      vctx.rotate((Math.PI*2/b.petals)*p);
+      const len=b.size*(1+E.high*8);
+      vctx.beginPath();
+      vctx.moveTo(0,0);
+      vctx.quadraticCurveTo(len*0.42, -len*0.34, len, 0);
+      vctx.quadraticCurveTo(len*0.42, len*0.34, 0, 0);
+      const g=vctx.createLinearGradient(0,0,len,0);
+      g.addColorStop(0, col(b.hue, 55, b.life*0.55));
+      g.addColorStop(1, col(b.hue+0.18, 72, b.life*0.10));
+      vctx.fillStyle=g; vctx.fill();
+      vctx.strokeStyle=col(b.hue+0.1, 78, b.life*0.35);
+      vctx.lineWidth=0.9*dpr; vctx.stroke();
+      vctx.restore();
+    }
+    vctx.fillStyle=col(b.hue+0.5, 88, b.life*0.8);
+    vctx.beginPath(); vctx.arc(0,0,b.size*0.12+1,0,Math.PI*2); vctx.fill();
+    vctx.restore();
+  }
+  if(blooms.length>70) blooms.splice(0, blooms.length-70);
+}
+
+/* ---------- 4. Nordlicht ---------- */
+function drawAurora(w,h,E){
+  fade(w,h,0.085);
+  vctx.globalCompositeOperation='lighter';
+  const bands=7, fft=E.fft;
+  for(let b=0;b<bands;b++){
+    const yBase=h*(0.22+ b*0.09);
+    const hueX=b/bands*0.8;
+    vctx.beginPath();
+    vctx.moveTo(0,h);
+    for(let x=0;x<=w;x+=6){
+      const t=x/w;
+      const idx=Math.floor(t*fft.length);
+      const mag=Tone.dbToGain(fft[idx]||-100);
+      const y=yBase
+        + Math.sin(t*5 + vt*1.4 + b)*h*0.06
+        + Math.sin(t*11 - vt*0.9 + b*2)*h*0.03
+        - mag*h*1.9;
+      vctx.lineTo(x,y);
+    }
+    vctx.lineTo(w,h); vctx.closePath();
+    const g=vctx.createLinearGradient(0,yBase-h*0.3,0,yBase+h*0.25);
+    g.addColorStop(0, col(hueX, 62, 0.02));
+    g.addColorStop(0.45, col(hueX+0.1, 55, 0.16+E.mid*2.2));
+    g.addColorStop(1, col(hueX+0.2, 40, 0));
+    vctx.fillStyle=g; vctx.fill();
+  }
+  // Sterne
+  for(let i=0;i<3;i++){
+    if(E.high>0.005 && Math.random()>0.6){
+      const x=Math.random()*w, y=Math.random()*h*0.55;
+      vctx.fillStyle=col(Math.random(),92,0.5+E.high*20);
+      vctx.beginPath(); vctx.arc(x,y,1+Math.random()*2.2,0,Math.PI*2); vctx.fill();
+    }
   }
 }
-function drawWater(w,h,bassE,midE,highE){
-  vctx.fillStyle='rgba(246,247,238,0.09)'; vctx.fillRect(0,0,w,h);
-  if(bassE>0.06&&Math.random()>0.35) ripples.push({x:Math.random()*w,y:Math.random()*h,r:1,life:1,c:'#4a7f8c'});
-  if(highE>0.006) ripples.push({x:Math.random()*w,y:Math.random()*h,r:1,life:1,c:'#5d7c4a'});
+
+/* ---------- 5. Wasser ---------- */
+function drawWasser(w,h,E){
+  fade(w,h,0.06);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  if(E.bass>0.05 && Math.random()>0.4)
+    ripples.push({x:Math.random()*w,y:Math.random()*h,r:1,life:1,hue:Math.random()*0.4,wd:2.6});
+  if(E.high>0.005)
+    ripples.push({x:Math.random()*w,y:Math.random()*h,r:1,life:1,hue:0.5+Math.random()*0.5,wd:1.1});
+  vctx.globalCompositeOperation='lighter';
   for(let i=ripples.length-1;i>=0;i--){
     const rp=ripples[i];
-    rp.r+=1.5+midE*20; rp.life-=0.012;
+    rp.r+=1.4+E.mid*26; rp.life-=0.010;
     if(rp.life<=0){ ripples.splice(i,1); continue; }
-    vctx.strokeStyle=rp.c; vctx.globalAlpha=rp.life*0.5; vctx.lineWidth=1.3;
-    vctx.beginPath(); vctx.arc(rp.x,rp.y,rp.r,0,Math.PI*2); vctx.stroke();
+    for(let k=0;k<3;k++){
+      const rr=rp.r-k*7;
+      if(rr<=0) continue;
+      vctx.strokeStyle=col(rp.hue+k*0.06, 60, rp.life*(0.42-k*0.11));
+      vctx.lineWidth=rp.wd*dpr*(1-k*0.25);
+      vctx.beginPath(); vctx.arc(rp.x,rp.y,rr,0,Math.PI*2); vctx.stroke();
+    }
   }
-  vctx.globalAlpha=1;
-  if(ripples.length>220) ripples.splice(0,ripples.length-220);
+  if(ripples.length>200) ripples.splice(0, ripples.length-200);
 }
-function drawRings(w,h,bassE,midE,highE,fft){
-  vctx.fillStyle='rgba(246,247,238,0.14)'; vctx.fillRect(0,0,w,h);
-  const maxR=Math.min(w,h)*0.45;
+
+/* ---------- 6. Jahresringe ---------- */
+function drawRinge(w,h,E){
+  fade(w,h,0.11);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const maxR=Math.min(w,h)*0.46, fft=E.fft;
   vctx.save(); vctx.translate(w/2,h/2);
-  for(let ring=0;ring<24;ring++){
-    const baseR=maxR*(ring+1)/24;
+  vctx.globalCompositeOperation='lighter';
+  for(let ring=0;ring<30;ring++){
+    const baseR=maxR*(ring+1)/30;
     vctx.beginPath();
-    for(let a=0;a<=Math.PI*2+0.05;a+=0.06){
+    for(let a=0;a<=Math.PI*2+0.05;a+=0.05){
       const idx=Math.floor((a/(Math.PI*2))*fft.length);
       const mag=Tone.dbToGain(fft[idx]||-100);
-      const wob=Math.sin(a*4+ring*0.6+vt*0.5)*3;
-      const r=baseR+wob+mag*maxR*0.55*(1-ring/30);
-      const px=Math.cos(a)*r, py=Math.sin(a)*r;
-      if(a===0) vctx.moveTo(px,py); else vctx.lineTo(px,py);
+      const wob=Math.sin(a*5+ring*0.5+vt*0.6)*4 + Math.sin(a*13-ring*0.3)*2;
+      const r=baseR+wob+mag*maxR*0.7*(1-ring/40);
+      const x=Math.cos(a)*r, y=Math.sin(a)*r;
+      if(a===0) vctx.moveTo(x,y); else vctx.lineTo(x,y);
     }
     vctx.closePath();
-    vctx.strokeStyle=(ring%3===0?'rgba(107,88,67,':'rgba(93,124,74,')+(0.16+midE*1.5)+')';
-    vctx.lineWidth=ring%4===0?1.7:0.85;
+    vctx.strokeStyle=col(ring/30*0.8+E.bright*0.2, 45+E.mid*180, 0.18+E.mid*1.6);
+    vctx.lineWidth=(ring%5===0?2.1:0.9)*dpr;
     vctx.stroke();
   }
-  vctx.fillStyle='rgba(176,138,60,'+(0.16+bassE*1.1)+')';
-  vctx.beginPath(); vctx.arc(0,0,6+bassE*55,0,Math.PI*2); vctx.fill();
+  const cr=8+E.bass*70;
+  const g=vctx.createRadialGradient(0,0,0,0,0,cr);
+  g.addColorStop(0, col(E.bright+0.4,90,0.9));
+  g.addColorStop(1, col(E.bright,55,0));
+  vctx.fillStyle=g;
+  vctx.beginPath(); vctx.arc(0,0,cr,0,Math.PI*2); vctx.fill();
   vctx.restore();
 }
+
+/* ---------- 7. Schwarm ---------- */
+const flock=[];
+function drawSchwarm(w,h,E){
+  fade(w,h,0.10);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  while(flock.length<140){
+    flock.push({x:Math.random()*w, y:Math.random()*h,
+      vx:(Math.random()-0.5)*2, vy:(Math.random()-0.5)*2, hue:Math.random()});
+  }
+  const cx=w/2+Math.cos(vt*0.6)*w*0.22;
+  const cy=h/2+Math.sin(vt*0.9)*h*0.22;
+  const speed=0.6+E.mid*22;
+  vctx.globalCompositeOperation='lighter';
+  flock.forEach(p=>{
+    const dx=cx-p.x, dy=cy-p.y;
+    const d=Math.hypot(dx,dy)||1;
+    p.vx += (dx/d)*0.14 + (Math.random()-0.5)*0.5*(1+E.high*40);
+    p.vy += (dy/d)*0.14 + (Math.random()-0.5)*0.5*(1+E.high*40);
+    const v=Math.hypot(p.vx,p.vy)||1;
+    p.vx=(p.vx/v)*speed; p.vy=(p.vy/v)*speed;
+    const px=p.x, py=p.y;
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x+=w; if(p.x>w)p.x-=w;
+    if(p.y<0)p.y+=h; if(p.y>h)p.y-=h;
+    vctx.strokeStyle=col(p.hue+E.bright*0.3, 65, 0.42+E.bass*2.2);
+    vctx.lineWidth=(1+E.bass*9)*dpr;
+    vctx.beginPath(); vctx.moveTo(px,py); vctx.lineTo(p.x,p.y); vctx.stroke();
+  });
+}
+
 drawViz();
 
 /* ==========================================================
    INIT
    ========================================================== */
 (function init(){
+  cacheStepEls();
   const idx = loadIndex();
   if(idx.length){
     const raw = store.get('moosgrund:song:'+idx[0].id);
