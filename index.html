@@ -3,13 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#eef0e4">
+<meta name="theme-color" content="#f2f2ea">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Moosgrund">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Moosgrund</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Monoton&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
   :root{
@@ -51,30 +56,53 @@
     mix-blend-mode:multiply;
   }
 
-  .wrap{max-width:820px;margin:0 auto;padding:20px 18px 100px;}
+  .wrap{max-width:820px;margin:0 auto;padding:24px 18px 100px;overflow:visible;}
 
   /* ---------- header ---------- */
-  header{position:relative;margin-bottom:20px;padding-bottom:14px;}
+  header{position:relative;margin-bottom:20px;padding-bottom:14px;overflow:visible;}
   header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;
     background:var(--edge);}
   h1{
-    font-family:'Gloock',serif;font-weight:400;
-    font-size:clamp(2.2rem,10vw,3.2rem);
-    margin:0;line-height:1.02;letter-spacing:0.01em;
-    color:transparent;
-    background-image:linear-gradient(100deg,
-      #ff4f7b 0%, #ff9a3c 14%, #ffe14d 28%, #7fd44a 42%,
-      #3fc9d6 56%, #6a8cff 70%, #9b7ade 84%, #ff4f7b 100%);
-    background-size:340% 100%;
-    -webkit-background-clip:text;background-clip:text;
-    animation:psych-flow 16s linear infinite, psych-glow 7s ease-in-out infinite;
+    font-family:'Monoton',cursive;font-weight:400;
+    font-size:clamp(1.45rem,7.6vw,2.6rem);
+    margin:0;line-height:1.5;letter-spacing:0.045em;
+    padding:10px 8px 16px 2px;
+    white-space:nowrap;overflow:visible;
+    color:#fff8ff;
+    text-shadow:
+      0 0 3px #fff,
+      0 0 9px #ff42c8,
+      0 0 20px #ff42c8,
+      0 0 38px #ff42c8,
+      0 0 70px rgba(255,66,200,0.55);
+    animation:
+      neon-start 2.6s ease-out 1 both,
+      neon-hue 34s linear 2.6s infinite;
   }
-  @keyframes psych-flow{ from{background-position:0% 0;} to{background-position:340% 0;} }
-  @keyframes psych-glow{
-    0%,100%{filter:drop-shadow(0 0 5px rgba(224,85,155,0.42)) saturate(1.05);}
-    50%    {filter:drop-shadow(0 0 13px rgba(63,201,214,0.48)) saturate(1.3);}
+  /* Einschalten: flackern, dann stehen */
+  @keyframes neon-start{
+    0%   {opacity:0.10;}
+    3%   {opacity:0.85;}
+    5%   {opacity:0.12;}
+    9%   {opacity:0.92;}
+    12%  {opacity:0.15;}
+    14%  {opacity:0.80;}
+    19%  {opacity:0.20;}
+    22%  {opacity:1;}
+    26%  {opacity:0.35;}
+    30%  {opacity:1;}
+    35%  {opacity:0.55;}
+    39%  {opacity:1;}
+    46%  {opacity:0.75;}
+    52%  {opacity:1;}
+    100% {opacity:1;}
   }
-  .bluete{position:absolute;right:0;top:50%;margin-top:-24px;width:44px;height:44px;pointer-events:none;}
+  /* langsamer Farbwechsel durch das ganze Spektrum */
+  @keyframes neon-hue{
+    from{filter:hue-rotate(0deg);}
+    to  {filter:hue-rotate(360deg);}
+  }
+  .bluete{position:absolute;right:0;top:50%;margin-top:-26px;width:44px;height:44px;pointer-events:none;}
   .bluete .petals{animation:bluete-atmen 6s ease-in-out infinite;transform-origin:50px 50px;}
   .bluete .ring-outer{animation:bluete-dreh 66s linear infinite;transform-origin:0 0;}
   .bluete .ring-inner{animation:bluete-dreh-rueck 48s linear infinite;transform-origin:0 0;}
@@ -274,7 +302,7 @@
 
   @media (prefers-reduced-motion:reduce){
     *{transition:none!important;}
-    h1{animation:none!important;filter:none;}
+    h1{animation:none!important;filter:none;opacity:1;}
     .bluete .ring-outer,.bluete .ring-inner{animation:none!important;}
     .bluete .petals{animation-duration:10s!important;}
     .bluete .kern{animation-duration:10s!important;}
