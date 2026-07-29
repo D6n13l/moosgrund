@@ -14,7 +14,7 @@
 <title>Moosgrund</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Monoton&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Sacramento&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
   :root{
@@ -59,50 +59,84 @@
   .wrap{max-width:820px;margin:0 auto;padding:24px 18px 100px;overflow:visible;}
 
   /* ---------- header ---------- */
-  header{position:relative;margin-bottom:20px;padding-bottom:14px;overflow:visible;}
+  header{position:relative;margin-bottom:18px;padding-bottom:10px;overflow:visible;}
   header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;
     background:var(--edge);}
   h1{
-    font-family:'Monoton',cursive;font-weight:400;
-    font-size:clamp(1.45rem,7.6vw,2.6rem);
-    margin:0;line-height:1.5;letter-spacing:0.045em;
-    padding:10px 8px 16px 2px;
+    font-family:'Sacramento',cursive;font-weight:400;
+    font-size:clamp(2.6rem,13vw,4.4rem);
+    text-transform:lowercase;
+    margin:0;line-height:1.18;letter-spacing:0.012em;
+    padding:14px 10px 22px 4px;
     white-space:nowrap;overflow:visible;
-    color:#fff8ff;
+    color:#c4297f;
+    /* nur weiches Streulicht, kein harter Kern */
     text-shadow:
-      0 0 3px #fff,
-      0 0 9px #ff42c8,
-      0 0 20px #ff42c8,
-      0 0 38px #ff42c8,
-      0 0 70px rgba(255,66,200,0.55);
+      0 0 7px  rgba(196,41,127,0.34),
+      0 0 18px rgba(196,41,127,0.26),
+      0 0 38px rgba(196,41,127,0.17),
+      0 0 68px rgba(196,41,127,0.10);
     animation:
-      neon-start 2.6s ease-out 1 both,
-      neon-hue 34s linear 2.6s infinite;
+      neon-start 6.4s linear 1 both,
+      neon-breath 7s ease-in-out 6.4s infinite,
+      neon-hue 44s linear 6.4s infinite;
   }
-  /* Einschalten: flackern, dann stehen */
+  /* Einschalten: lange zoegern, zucken, dann stehen bleiben */
   @keyframes neon-start{
-    0%   {opacity:0.10;}
-    3%   {opacity:0.85;}
-    5%   {opacity:0.12;}
-    9%   {opacity:0.92;}
-    12%  {opacity:0.15;}
-    14%  {opacity:0.80;}
-    19%  {opacity:0.20;}
-    22%  {opacity:1;}
-    26%  {opacity:0.35;}
-    30%  {opacity:1;}
-    35%  {opacity:0.55;}
-    39%  {opacity:1;}
-    46%  {opacity:0.75;}
-    52%  {opacity:1;}
+    0%   {opacity:0.04;}
+    4%   {opacity:0.55;}
+    5%   {opacity:0.05;}
+    11%  {opacity:0.05;}
+    12%  {opacity:0.62;}
+    14%  {opacity:0.06;}
+    21%  {opacity:0.06;}
+    22%  {opacity:0.70;}
+    23%  {opacity:0.08;}
+    27%  {opacity:0.66;}
+    28%  {opacity:0.07;}
+    35%  {opacity:0.07;}
+    36%  {opacity:0.78;}
+    38%  {opacity:0.10;}
+    43%  {opacity:0.82;}
+    45%  {opacity:0.24;}
+    50%  {opacity:0.88;}
+    52%  {opacity:0.30;}
+    57%  {opacity:0.92;}
+    60%  {opacity:0.45;}
+    66%  {opacity:0.95;}
+    69%  {opacity:0.62;}
+    75%  {opacity:1;}
+    78%  {opacity:0.72;}
+    84%  {opacity:1;}
+    88%  {opacity:0.86;}
+    93%  {opacity:1;}
+    96%  {opacity:0.93;}
     100% {opacity:1;}
   }
-  /* langsamer Farbwechsel durch das ganze Spektrum */
+  /* danach immer ein leichtes Zucken, wie eine muede Roehre */
+  @keyframes neon-breath{
+    0%,100%{opacity:1;}
+    9%   {opacity:0.93;}
+    11%  {opacity:1;}
+    23%  {opacity:0.87;}
+    25%  {opacity:0.99;}
+    26%  {opacity:0.91;}
+    28%  {opacity:1;}
+    47%  {opacity:0.95;}
+    52%  {opacity:0.84;}
+    54%  {opacity:1;}
+    68%  {opacity:0.97;}
+    71%  {opacity:0.89;}
+    73%  {opacity:1;}
+    88%  {opacity:0.92;}
+    90%  {opacity:1;}
+  }
+  /* sehr langsamer Farbwechsel */
   @keyframes neon-hue{
     from{filter:hue-rotate(0deg);}
     to  {filter:hue-rotate(360deg);}
   }
-  .bluete{position:absolute;right:0;top:50%;margin-top:-26px;width:44px;height:44px;pointer-events:none;}
+  .bluete{position:absolute;right:0;top:50%;margin-top:-20px;width:44px;height:44px;pointer-events:none;}
   .bluete .petals{animation:bluete-atmen 6s ease-in-out infinite;transform-origin:50px 50px;}
   .bluete .ring-outer{animation:bluete-dreh 66s linear infinite;transform-origin:0 0;}
   .bluete .ring-inner{animation:bluete-dreh-rueck 48s linear infinite;transform-origin:0 0;}
