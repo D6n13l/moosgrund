@@ -57,7 +57,23 @@
   h1{font-family:'Gloock',serif;font-weight:400;font-size:clamp(2rem,8.5vw,2.9rem);
     margin:0;line-height:1;color:var(--ink);}
   .tagline{color:var(--ink-soft);font-size:0.79rem;margin-top:6px;}
-  .fern{position:absolute;right:-4px;top:-10px;width:88px;opacity:0.22;pointer-events:none;}
+  .bluete{position:absolute;right:-2px;top:-14px;width:92px;pointer-events:none;
+    filter:drop-shadow(0 2px 6px rgba(44,55,41,0.14));}
+  .bluete .petals{animation:bluete-atmen 7s ease-in-out infinite;transform-origin:50px 50px;}
+  .bluete .ring-outer{animation:bluete-dreh 46s linear infinite;transform-origin:0 0;}
+  .bluete .ring-inner{animation:bluete-dreh-rueck 34s linear infinite;transform-origin:0 0;}
+  .bluete .kern{animation:bluete-kern 7s ease-in-out infinite;transform-origin:0 0;}
+  @keyframes bluete-atmen{
+    0%,100%{transform:translate(50px,50px) scale(0.92);opacity:0.80;}
+    50%    {transform:translate(50px,50px) scale(1.06);opacity:1;}
+  }
+  @keyframes bluete-kern{
+    0%,100%{transform:scale(0.85);}
+    50%    {transform:scale(1.18);}
+  }
+  @keyframes bluete-dreh{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  @keyframes bluete-dreh-rueck{ from{transform:rotate(0deg);} to{transform:rotate(-360deg);} }
+  .loadhint{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--ink-faint);}
 
   /* ---------- project bar ---------- */
   .projectbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;
@@ -199,7 +215,7 @@
     border:1px solid var(--edge);border-radius:20px;padding:3px 8px;margin-left:7px;}
   .empty{color:var(--ink-faint);font-size:0.78rem;padding:14px 4px;}
 
-  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 </head>
 <body>
@@ -213,12 +229,32 @@
 
 <div class="wrap">
   <header>
-    <svg class="fern" viewBox="0 0 100 100" fill="none" stroke="#5d7c4a" stroke-width="1.5">
-      <path d="M50 96 C50 70 50 40 50 8"/>
-      <path d="M50 84 C40 80 32 72 28 62M50 84 C60 80 68 72 72 62"/>
-      <path d="M50 68 C42 64 35 57 31 48M50 68 C58 64 65 57 69 48"/>
-      <path d="M50 52 C43 49 37 43 34 35M50 52 C57 49 63 43 66 35"/>
-      <path d="M50 36 C45 33 40 28 38 22M50 36 C55 33 60 28 62 22"/>
+    <svg class="bluete" viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <radialGradient id="bg1" cx="50%" cy="50%">
+          <stop offset="0%" stop-color="#f2c96b"/>
+          <stop offset="100%" stop-color="#c98b3e"/>
+        </radialGradient>
+      </defs>
+      <g class="petals" transform="translate(50,50)">
+        <g class="ring ring-outer">
+          <ellipse rx="11" ry="27" cy="-22" fill="#b8859f" opacity="0.62"/>
+          <ellipse rx="11" ry="27" cy="-22" fill="#b8859f" opacity="0.62" transform="rotate(60)"/>
+          <ellipse rx="11" ry="27" cy="-22" fill="#b8859f" opacity="0.62" transform="rotate(120)"/>
+          <ellipse rx="11" ry="27" cy="-22" fill="#b8859f" opacity="0.62" transform="rotate(180)"/>
+          <ellipse rx="11" ry="27" cy="-22" fill="#b8859f" opacity="0.62" transform="rotate(240)"/>
+          <ellipse rx="11" ry="27" cy="-22" fill="#b8859f" opacity="0.62" transform="rotate(300)"/>
+        </g>
+        <g class="ring ring-inner">
+          <ellipse rx="8" ry="18" cy="-14" fill="#7fa864" opacity="0.72" transform="rotate(30)"/>
+          <ellipse rx="8" ry="18" cy="-14" fill="#7fa864" opacity="0.72" transform="rotate(90)"/>
+          <ellipse rx="8" ry="18" cy="-14" fill="#7fa864" opacity="0.72" transform="rotate(150)"/>
+          <ellipse rx="8" ry="18" cy="-14" fill="#7fa864" opacity="0.72" transform="rotate(210)"/>
+          <ellipse rx="8" ry="18" cy="-14" fill="#7fa864" opacity="0.72" transform="rotate(270)"/>
+          <ellipse rx="8" ry="18" cy="-14" fill="#7fa864" opacity="0.72" transform="rotate(330)"/>
+        </g>
+        <circle class="kern" r="9" fill="url(#bg1)"/>
+      </g>
     </svg>
     <h1>Moosgrund</h1>
     <div class="tagline">Beats, Bass, Melodien, Stimme &mdash; und ganze Sets</div>
@@ -279,38 +315,46 @@
         <select id="melInstrument">
           <optgroup label="Tasten">
             <option value="piano">Piano</option>
-            <option value="epiano">E-Piano</option>
+            <option value="harmonium">Harmonium</option>
             <option value="orgel">Orgel</option>
-            <option value="cembalo">Cembalo</option>
+            <option value="epiano">E-Piano</option>
           </optgroup>
           <optgroup label="Saiten">
             <option value="gitarre">Gitarre</option>
+            <option value="konzertgitarre">Konzertgitarre</option>
+            <option value="egitarre">E-Gitarre</option>
             <option value="harfe">Harfe</option>
-            <option value="streicher">Streicher</option>
+            <option value="violine">Violine</option>
             <option value="cello">Cello</option>
-            <option value="sitar">Sitar</option>
+            <option value="kontrabass">Kontrabass</option>
           </optgroup>
           <optgroup label="Blas">
             <option value="trompete">Trompete</option>
             <option value="posaune">Posaune</option>
+            <option value="waldhorn">Waldhorn</option>
+            <option value="tuba">Tuba</option>
+            <option value="saxofon">Saxofon</option>
             <option value="klarinette">Klarinette</option>
-            <option value="floete">Flöte</option>
-            <option value="panfloete">Panflöte</option>
+            <option value="fagott">Fagott</option>
+            <option value="floete">Fl&ouml;te</option>
           </optgroup>
           <optgroup label="Schlag &amp; Klang">
+            <option value="xylofon">Xylofon</option>
             <option value="marimba">Marimba</option>
             <option value="vibraphon">Vibraphon</option>
             <option value="kalimba">Kalimba</option>
             <option value="glocke">Glocke</option>
-            <option value="celesta">Celesta</option>
+          </optgroup>
+          <optgroup label="Stimmen">
+            <option value="kinderchor">Kinderchor</option>
           </optgroup>
           <optgroup label="Synth">
             <option value="lead">Lead</option>
             <option value="pad">Pad</option>
-            <option value="chor">Chor</option>
             <option value="tropfen">Tropfen</option>
           </optgroup>
         </select>
+        <span id="instLoad" class="loadhint"></span>
         <button id="tryInstBtn" class="mini">Anhören</button>
       </div>
 
@@ -591,89 +635,221 @@ const melFilter = new Tone.Filter(7200,'lowpass');
 melFilter.connect(melNatural);
 melFilter.connect(melFXIn);
 
+/* ---------------------------------------------------------
+   Instrumente: echte Aufnahmen, wo es sie gibt.
+   Fällt automatisch auf einen Synth zurück, wenn die
+   Samples nicht geladen werden können.
+   --------------------------------------------------------- */
+const SAMPLE_BASE = 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments@master/samples/';
+function toSharp(n){ return n.replace('s','#'); }
+
+/* Kinderchor: eigene Kette mit Vibrato und Vokalformanten */
+const choirVibrato = new Tone.Vibrato({frequency:5.2, depth:0.12});
+const choirF1 = new Tone.Filter({type:'bandpass', frequency:800,  Q:5});
+const choirF2 = new Tone.Filter({type:'bandpass', frequency:1150, Q:7});
+const choirF3 = new Tone.Filter({type:'bandpass', frequency:2900, Q:9});
+const choirAir = new Tone.Filter({type:'highshelf', frequency:5000, gain:5});
+const choirMix = new Tone.Gain(0.9);
+const choirChorus = new Tone.Chorus({frequency:0.55, delayTime:14, depth:0.85, spread:180}).start();
+const choirIn = new Tone.Gain(1);
+choirIn.connect(choirVibrato);
+choirVibrato.connect(choirF1); choirVibrato.connect(choirF2); choirVibrato.connect(choirF3);
+choirF1.connect(choirMix); choirF2.connect(choirMix); choirF3.connect(choirMix);
+choirMix.chain(choirAir, choirChorus, melFilter);
+
 const INSTRUMENTS = {
   /* ---- Tasten ---- */
-  piano:{voice:Tone.FMSynth, vol:-11, opts:{harmonicity:2.02, modulationIndex:2.4,
-    oscillator:{type:'triangle'}, envelope:{attack:0.006, decay:1.4, sustain:0.06, release:1.3},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.35, sustain:0, release:0.4}}},
-  epiano:{voice:Tone.FMSynth, vol:-13, opts:{harmonicity:3.01, modulationIndex:3.2,
-    oscillator:{type:'sine'}, envelope:{attack:0.005, decay:1.6, sustain:0.08, release:1.4},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.005, decay:0.5, sustain:0, release:0.5}}},
-  orgel:{voice:Tone.AMSynth, vol:-17, opts:{harmonicity:2.001,
-    oscillator:{type:'sine'}, envelope:{attack:0.04, decay:0.06, sustain:1, release:0.22},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.05, decay:0.1, sustain:1, release:0.2}}},
-  cembalo:{voice:Tone.FMSynth, vol:-15, opts:{harmonicity:3.5, modulationIndex:4,
-    oscillator:{type:'triangle'}, envelope:{attack:0.002, decay:0.7, sustain:0.01, release:0.5},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.25, sustain:0, release:0.3}}},
+  piano:{label:'Piano', vol:-8, sample:{folder:'piano',
+    notes:['C2','Fs2','C3','Fs3','C4','Fs4','C5','Fs5','C6']},
+    voice:Tone.FMSynth, opts:{harmonicity:2.02, modulationIndex:2.4, oscillator:{type:'triangle'},
+      envelope:{attack:0.006, decay:1.4, sustain:0.06, release:1.3},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.35, sustain:0, release:0.4}}},
+  harmonium:{label:'Harmonium', vol:-11, sample:{folder:'harmonium',
+    notes:['C2','Fs2','C3','Fs3','C4','A4','C5']},
+    voice:Tone.AMSynth, opts:{harmonicity:2.001, oscillator:{type:'sine'},
+      envelope:{attack:0.06, decay:0.1, sustain:1, release:0.4}, modulation:{type:'sine'}}},
+  orgel:{label:'Orgel', vol:-13, sample:{folder:'organ',
+    notes:['C2','Fs2','C3','Fs3','C4','Fs4','C5']},
+    voice:Tone.AMSynth, opts:{harmonicity:2.001, oscillator:{type:'sine'},
+      envelope:{attack:0.04, decay:0.06, sustain:1, release:0.22}, modulation:{type:'sine'}}},
+  epiano:{label:'E-Piano', vol:-13,
+    voice:Tone.FMSynth, opts:{harmonicity:3.01, modulationIndex:3.2, oscillator:{type:'sine'},
+      envelope:{attack:0.005, decay:1.6, sustain:0.08, release:1.4},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.005, decay:0.5, sustain:0, release:0.5}}},
 
   /* ---- Saiten ---- */
-  gitarre:{voice:Tone.FMSynth, vol:-12, opts:{harmonicity:1.99, modulationIndex:3,
-    oscillator:{type:'triangle'}, envelope:{attack:0.005, decay:1.1, sustain:0.04, release:0.9},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.4, sustain:0, release:0.4}}},
-  harfe:{voice:Tone.FMSynth, vol:-11, opts:{harmonicity:2.01, modulationIndex:1.8,
-    oscillator:{type:'sine'}, envelope:{attack:0.004, decay:1.8, sustain:0.02, release:1.6},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.6, sustain:0, release:0.6}}},
-  streicher:{voice:Tone.Synth, vol:-19, opts:{oscillator:{type:'fattriangle', count:3, spread:14},
-    envelope:{attack:0.28, decay:0.4, sustain:0.8, release:1.5}}},
-  cello:{voice:Tone.Synth, vol:-16, opts:{oscillator:{type:'fattriangle', count:2, spread:9},
-    envelope:{attack:0.13, decay:0.35, sustain:0.75, release:1.0}}},
-  sitar:{voice:Tone.FMSynth, vol:-16, opts:{harmonicity:2.5, modulationIndex:6,
-    oscillator:{type:'triangle'}, envelope:{attack:0.005, decay:1.3, sustain:0.06, release:1.1},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.01, decay:0.55, sustain:0.05, release:0.5}}},
+  gitarre:{label:'Gitarre', vol:-7, sample:{folder:'guitar-acoustic',
+    notes:['E2','A2','C3','E3','A3','C4','E4','A4','C5']},
+    voice:Tone.FMSynth, opts:{harmonicity:1.99, modulationIndex:3, oscillator:{type:'triangle'},
+      envelope:{attack:0.005, decay:1.1, sustain:0.04, release:0.9},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.4, sustain:0, release:0.4}}},
+  konzertgitarre:{label:'Konzertgitarre', vol:-7, sample:{folder:'guitar-nylon',
+    notes:['E2','A2','B2','E3','A3','B3','E4','A4','E5']},
+    voice:Tone.FMSynth, opts:{harmonicity:2.0, modulationIndex:2.2, oscillator:{type:'triangle'},
+      envelope:{attack:0.006, decay:1.2, sustain:0.03, release:1.0},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.4, sustain:0, release:0.4}}},
+  egitarre:{label:'E-Gitarre', vol:-9, sample:{folder:'guitar-electric',
+    notes:['E2','A2','C3','Ds3','Fs3','A3','C4','Ds4','A4','C5']},
+    voice:Tone.Synth, opts:{oscillator:{type:'triangle'},
+      envelope:{attack:0.004, decay:0.9, sustain:0.1, release:0.7}}},
+  harfe:{label:'Harfe', vol:-8, sample:{folder:'harp',
+    notes:['A2','C3','E3','G3','B3','D4','A4','E5']},
+    voice:Tone.FMSynth, opts:{harmonicity:2.01, modulationIndex:1.8, oscillator:{type:'sine'},
+      envelope:{attack:0.004, decay:1.8, sustain:0.02, release:1.6},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.6, sustain:0, release:0.6}}},
+  violine:{label:'Violine', vol:-11, sample:{folder:'violin',
+    notes:['G3','A3','C4','E4','G4','A4','C5','E5','G5']},
+    voice:Tone.Synth, opts:{oscillator:{type:'fattriangle', count:3, spread:14},
+      envelope:{attack:0.2, decay:0.4, sustain:0.8, release:1.2}}},
+  cello:{label:'Cello', vol:-10, sample:{folder:'cello',
+    notes:['C2','E2','G2','C3','E3','G3','C4','E4','G4']},
+    voice:Tone.Synth, opts:{oscillator:{type:'fattriangle', count:2, spread:9},
+      envelope:{attack:0.13, decay:0.35, sustain:0.75, release:1.0}}},
+  kontrabass:{label:'Kontrabass', vol:-9, sample:{folder:'contrabass',
+    notes:['C2','E2','A2','E3','B3']},
+    voice:Tone.Synth, opts:{oscillator:{type:'fattriangle', count:2, spread:8},
+      envelope:{attack:0.09, decay:0.4, sustain:0.6, release:0.9}}},
 
   /* ---- Blas ---- */
-  trompete:{voice:Tone.FMSynth, vol:-17, opts:{harmonicity:1.005, modulationIndex:4.5,
-    oscillator:{type:'triangle'}, envelope:{attack:0.07, decay:0.25, sustain:0.7, release:0.4},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.09, decay:0.25, sustain:0.5, release:0.35}}},
-  posaune:{voice:Tone.FMSynth, vol:-16, opts:{harmonicity:0.5, modulationIndex:3.6,
-    oscillator:{type:'triangle'}, envelope:{attack:0.1, decay:0.25, sustain:0.78, release:0.45},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.12, decay:0.25, sustain:0.55, release:0.35}}},
-  klarinette:{voice:Tone.FMSynth, vol:-15, opts:{harmonicity:3, modulationIndex:1.6,
-    oscillator:{type:'sine'}, envelope:{attack:0.08, decay:0.15, sustain:0.82, release:0.4},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.2, sustain:0.6, release:0.3}}},
-  floete:{voice:Tone.Synth, vol:-13, opts:{oscillator:{type:'sine'},
-    envelope:{attack:0.13, decay:0.18, sustain:0.78, release:0.55}}},
-  panfloete:{voice:Tone.Synth, vol:-13, opts:{oscillator:{type:'triangle'},
-    envelope:{attack:0.06, decay:0.28, sustain:0.5, release:0.75}}},
+  trompete:{label:'Trompete', vol:-13, sample:{folder:'trumpet',
+    notes:['F3','A3','C4','Ds4','F4','G4','As4','F5','A5']},
+    voice:Tone.FMSynth, opts:{harmonicity:1.005, modulationIndex:4.5, oscillator:{type:'triangle'},
+      envelope:{attack:0.07, decay:0.25, sustain:0.7, release:0.4},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.09, decay:0.25, sustain:0.5, release:0.35}}},
+  posaune:{label:'Posaune', vol:-12, sample:{folder:'trombone',
+    notes:['As1','Ds2','Gs2','C3','Ds3','Gs3','C4','Ds4','F4']},
+    voice:Tone.FMSynth, opts:{harmonicity:0.5, modulationIndex:3.6, oscillator:{type:'triangle'},
+      envelope:{attack:0.1, decay:0.25, sustain:0.78, release:0.45},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.12, decay:0.25, sustain:0.55, release:0.35}}},
+  waldhorn:{label:'Waldhorn', vol:-12, sample:{folder:'french-horn',
+    notes:['C2','G2','D3','F3','A3','C4','D5','F5']},
+    voice:Tone.FMSynth, opts:{harmonicity:0.75, modulationIndex:3, oscillator:{type:'triangle'},
+      envelope:{attack:0.12, decay:0.3, sustain:0.75, release:0.6},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.14, decay:0.3, sustain:0.5, release:0.4}}},
+  tuba:{label:'Tuba', vol:-12, sample:{folder:'tuba',
+    notes:['F1','As1','Ds2','F2','As2','D3','F3','As3','D4']},
+    voice:Tone.FMSynth, opts:{harmonicity:0.5, modulationIndex:3, oscillator:{type:'sine'},
+      envelope:{attack:0.12, decay:0.3, sustain:0.8, release:0.5},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.14, decay:0.3, sustain:0.5, release:0.4}}},
+  saxofon:{label:'Saxofon', vol:-14, sample:{folder:'saxophone',
+    notes:['Cs3','E3','G3','As3','Cs4','E4','G4','As4','Cs5']},
+    voice:Tone.FMSynth, opts:{harmonicity:1.5, modulationIndex:4, oscillator:{type:'triangle'},
+      envelope:{attack:0.08, decay:0.2, sustain:0.78, release:0.4},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.2, sustain:0.55, release:0.3}}},
+  klarinette:{label:'Klarinette', vol:-13, sample:{folder:'clarinet',
+    notes:['D3','F3','As3','D4','F4','As4','D5','F5','As5']},
+    voice:Tone.FMSynth, opts:{harmonicity:3, modulationIndex:1.6, oscillator:{type:'sine'},
+      envelope:{attack:0.08, decay:0.15, sustain:0.82, release:0.4},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.2, sustain:0.6, release:0.3}}},
+  fagott:{label:'Fagott', vol:-12, sample:{folder:'bassoon',
+    notes:['G2','A2','C3','G3','A3','C4','E4','G4','A4']},
+    voice:Tone.FMSynth, opts:{harmonicity:1.5, modulationIndex:3, oscillator:{type:'triangle'},
+      envelope:{attack:0.09, decay:0.25, sustain:0.75, release:0.45},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.25, sustain:0.5, release:0.35}}},
+  floete:{label:'Flöte', vol:-11, sample:{folder:'flute',
+    notes:['C4','E4','A4','C5','E5','A5','C6','E6']},
+    voice:Tone.Synth, opts:{oscillator:{type:'sine'},
+      envelope:{attack:0.13, decay:0.18, sustain:0.78, release:0.55}}},
 
   /* ---- Schlag & Klang ---- */
-  marimba:{voice:Tone.FMSynth, vol:-9, opts:{harmonicity:4.01, modulationIndex:2,
-    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:0.55, sustain:0.005, release:0.6},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.2, sustain:0, release:0.25}}},
-  vibraphon:{voice:Tone.FMSynth, vol:-12, opts:{harmonicity:4.0, modulationIndex:2.4,
-    oscillator:{type:'sine'}, envelope:{attack:0.003, decay:1.8, sustain:0.03, release:2.0},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.003, decay:0.9, sustain:0, release:0.9}}},
-  kalimba:{voice:Tone.FMSynth, vol:-9, opts:{harmonicity:3.02, modulationIndex:2.6,
-    oscillator:{type:'triangle'}, envelope:{attack:0.001, decay:0.4, sustain:0.005, release:0.45},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.001, decay:0.15, sustain:0, release:0.2}}},
-  glocke:{voice:Tone.FMSynth, vol:-15, opts:{harmonicity:3.01, modulationIndex:7,
-    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:2.2, sustain:0, release:2.4},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.8, sustain:0, release:0.8}}},
-  celesta:{voice:Tone.FMSynth, vol:-13, opts:{harmonicity:4.02, modulationIndex:3.4,
-    oscillator:{type:'sine'}, envelope:{attack:0.002, decay:1.1, sustain:0, release:1.2},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.4, sustain:0, release:0.45}}},
+  xylofon:{label:'Xylofon', vol:-11, sample:{folder:'xylophone',
+    notes:['G4','C5','G5','C6','G6','C7']},
+    voice:Tone.FMSynth, opts:{harmonicity:4.01, modulationIndex:2, oscillator:{type:'sine'},
+      envelope:{attack:0.002, decay:0.4, sustain:0.005, release:0.45},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.15, sustain:0, release:0.2}}},
+  marimba:{label:'Marimba', vol:-9,
+    voice:Tone.FMSynth, opts:{harmonicity:4.01, modulationIndex:2, oscillator:{type:'sine'},
+      envelope:{attack:0.002, decay:0.55, sustain:0.005, release:0.6},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.2, sustain:0, release:0.25}}},
+  vibraphon:{label:'Vibraphon', vol:-12,
+    voice:Tone.FMSynth, opts:{harmonicity:4.0, modulationIndex:2.4, oscillator:{type:'sine'},
+      envelope:{attack:0.003, decay:1.8, sustain:0.03, release:2.0},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.003, decay:0.9, sustain:0, release:0.9}}},
+  kalimba:{label:'Kalimba', vol:-9,
+    voice:Tone.FMSynth, opts:{harmonicity:3.02, modulationIndex:2.6, oscillator:{type:'triangle'},
+      envelope:{attack:0.001, decay:0.4, sustain:0.005, release:0.45},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.001, decay:0.15, sustain:0, release:0.2}}},
+  glocke:{label:'Glocke', vol:-15,
+    voice:Tone.FMSynth, opts:{harmonicity:3.01, modulationIndex:7, oscillator:{type:'sine'},
+      envelope:{attack:0.002, decay:2.2, sustain:0, release:2.4},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.8, sustain:0, release:0.8}}},
 
-  /* ---- Synth (hier ist elektronisch der Ausgangspunkt) ---- */
-  lead:{voice:Tone.Synth, vol:-16, opts:{oscillator:{type:'square'},
-    envelope:{attack:0.01, decay:0.2, sustain:0.6, release:0.4}}},
-  pad:{voice:Tone.Synth, vol:-19, opts:{oscillator:{type:'fatsine', count:3, spread:30},
-    envelope:{attack:0.6, decay:0.4, sustain:0.9, release:2.2}}},
-  chor:{voice:Tone.AMSynth, vol:-16, opts:{harmonicity:2, oscillator:{type:'sine'},
-    envelope:{attack:0.4, decay:0.3, sustain:0.9, release:1.6}, modulation:{type:'triangle'}}},
-  tropfen:{voice:Tone.FMSynth, vol:-14, opts:{harmonicity:5, modulationIndex:8,
-    oscillator:{type:'sine'}, envelope:{attack:0.001, decay:0.5, sustain:0, release:0.6},
-    modulation:{type:'sine'}, modulationEnvelope:{attack:0.001, decay:0.2, sustain:0, release:0.2}}}
+  /* ---- Stimmen ---- */
+  kinderchor:{label:'Kinderchor', vol:-9, choir:true, shift:12,
+    voice:Tone.AMSynth, opts:{harmonicity:1.002, oscillator:{type:'fatsine', count:4, spread:22},
+      envelope:{attack:0.35, decay:0.5, sustain:0.88, release:2.2},
+      modulation:{type:'sine'},
+      modulationEnvelope:{attack:0.5, decay:0.4, sustain:0.8, release:1.6}}},
+
+  /* ---- Synth ---- */
+  lead:{label:'Lead', vol:-16,
+    voice:Tone.Synth, opts:{oscillator:{type:'square'},
+      envelope:{attack:0.01, decay:0.2, sustain:0.6, release:0.4}}},
+  pad:{label:'Pad', vol:-19,
+    voice:Tone.Synth, opts:{oscillator:{type:'fatsine', count:3, spread:30},
+      envelope:{attack:0.6, decay:0.4, sustain:0.9, release:2.2}}},
+  tropfen:{label:'Tropfen', vol:-14,
+    voice:Tone.FMSynth, opts:{harmonicity:5, modulationIndex:8, oscillator:{type:'sine'},
+      envelope:{attack:0.001, decay:0.5, sustain:0, release:0.6},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.001, decay:0.2, sustain:0, release:0.2}}}
 };
 
-const instrumentCache = {};
-function getInstrument(kind){
-  if(instrumentCache[kind]) return instrumentCache[kind];
+/* frühere Namen weiterleiten, damit gesicherte Projekte ihren Klang behalten */
+const INSTRUMENT_ALIASES = {
+  streicher:'violine', cembalo:'harmonium', sitar:'konzertgitarre',
+  panfloete:'floete', celesta:'glocke', chor:'kinderchor'
+};
+
+const voiceCache = {};
+function getVoice(kind){
+  if(voiceCache[kind]) return voiceCache[kind];
   const def = INSTRUMENTS[kind] || INSTRUMENTS.piano;
-  const inst = new Tone.PolySynth(def.voice, def.opts);
-  inst.volume.value = def.vol;
-  inst.connect(melFilter);
-  instrumentCache[kind] = inst;
-  return inst;
+  const target = def.choir ? choirIn : melFilter;
+  const v = {def, kind, synth:null, sampler:null, ready:false, failed:false};
+
+  v.synth = new Tone.PolySynth(def.voice || Tone.Synth, def.opts || {});
+  v.synth.volume.value = def.vol || -12;
+  v.synth.connect(target);
+
+  if(def.sample){
+    const urls = {};
+    def.sample.notes.forEach(n=>{ urls[toSharp(n)] = n + '.mp3'; });
+    try{
+      v.sampler = new Tone.Sampler({
+        urls, baseUrl: SAMPLE_BASE + def.sample.folder + '/',
+        release: 1.1, curve:'exponential',
+        onload: ()=>{ v.ready = true; updateLoadHint(); },
+        onerror: ()=>{ v.failed = true; v.sampler = null; updateLoadHint(); }
+      });
+      v.sampler.volume.value = def.vol || -10;
+      v.sampler.connect(target);
+    }catch(e){ v.sampler = null; v.failed = true; }
+  }
+  voiceCache[kind] = v;
+  return v;
+}
+
+function shiftNote(note, semitones){
+  if(!semitones) return note;
+  try{ return Tone.Frequency(note).transpose(semitones).toNote(); }
+  catch(e){ return note; }
+}
+
+function playMelNote(kind, note, dur, time, vel, octave){
+  const v = getVoice(kind);
+  const n = shiftNote(note, (octave||0)*12 + (v.def.shift||0));
+  if(v.sampler && v.ready) v.sampler.triggerAttackRelease(n, dur, time, vel);
+  else v.synth.triggerAttackRelease(n, dur, time, vel);
+}
+
+function updateLoadHint(){
+  const el = document.getElementById('instLoad');
+  if(!el || !song) return;
+  const v = voiceCache[editScene().instrument];
+  if(!v || !v.def.sample) { el.textContent = ''; return; }
+  if(v.ready) el.textContent = 'echte Aufnahme';
+  else if(v.failed) el.textContent = 'Aufnahme nicht erreichbar – Ersatzklang';
+  else el.textContent = 'lädt Aufnahme …';
 }
 
 /* per-scene shaping */
@@ -690,22 +866,25 @@ function applyMelSettings(scene, force){
   if(!force && key === lastShaped) return;
   lastShaped = key;
 
-  const def = INSTRUMENTS[scene.instrument] || INSTRUMENTS.piano;
-  const baseAtt = def.opts.envelope ? def.opts.envelope.attack : 0.01;
-  const baseRel = def.opts.envelope ? def.opts.envelope.release : 0.6;
+  const v = getVoice(scene.instrument);
+  const def = v.def;
+  const baseAtt = def.opts && def.opts.envelope ? def.opts.envelope.attack : 0.01;
+  const baseRel = def.opts && def.opts.envelope ? def.opts.envelope.release : 0.6;
   try{
-    getInstrument(scene.instrument).set({
-      envelope:{ attack: baseAtt + (st.att/100)*0.7,
-                 release: baseRel * (0.25 + (st.rel/50)) },
-      detune: st.oct * 1200
-    });
+    v.synth.set({ envelope:{ attack: baseAtt + (st.att/100)*0.7,
+                             release: baseRel * (0.25 + (st.rel/50)) } });
   }catch(e){}
+  if(v.sampler){
+    try{
+      v.sampler.attack  = (st.att/100)*0.6;
+      v.sampler.release = 0.25 + (st.rel/100)*2.4;
+    }catch(e){}
+  }
 
   melFilter.frequency.rampTo(280 * Math.pow(45, st.tone/100), 0.05);
   melGain.gain.rampTo(Tone.dbToGain(st.vol), 0.05);
   melodyReverb.wet.rampTo(st.verb/100, 0.05);
 
-  /* electronic path grows with the slider */
   const e = st.elec/100;
   melBlend.fade.rampTo(e, 0.08);
   melDrive.distortion = 0.12 + e*0.6;
@@ -750,7 +929,7 @@ function makeScene(name, preset){
     s.drums.snare=[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0];
     s.bass[0]='E1'; s.bass[8]='C2';
     s.mel[2]='E4'; s.mel[6]='G4'; s.mel[10]='B4'; s.mel[13]='A4';
-    s.instrument='streicher';
+    s.instrument='violine';
   }
   return s;
 }
@@ -808,7 +987,8 @@ Tone.Transport.scheduleRepeat((time)=>{
   if(scene.bass[step]) bassSynth.triggerAttackRelease(scene.bass[step], '8n', time);
   if(scene.mel[step]){
     applyMelSettings(scene);
-    getInstrument(scene.instrument).triggerAttackRelease(scene.mel[step], '8n', time, humanVel());
+    playMelNote(scene.instrument, scene.mel[step], '8n', time, humanVel(),
+                (scene.melSettings && scene.melSettings.oct) || 0);
   }
 
   const every = Number(document.getElementById('vocalEvery').value);
@@ -986,6 +1166,8 @@ function refreshRolls(){
 document.getElementById('melInstrument').addEventListener('change', e=>{
   const sc = editScene();
   sc.instrument = e.target.value;
+  getVoice(sc.instrument);
+  updateLoadHint();
   applyMelSettings(sc, true);
   markDirty();
 });
@@ -1011,9 +1193,9 @@ document.getElementById('tryInstBtn').addEventListener('click', async ()=>{
   if(!audioReady) await unlockAudio();
   const sc = editScene();
   applyMelSettings(sc, true);
-  const inst = getInstrument(sc.instrument);
   const now = Tone.now();
-  ['E3','B3','E4','G4'].forEach((n,i)=> inst.triggerAttackRelease(n,'8n', now + i*0.22));
+  ['E3','B3','E4','G4'].forEach((n,i)=>
+    playMelNote(sc.instrument, n, '8n', now + i*0.24, humanVel(), sc.melSettings.oct));
 });
 
 function syncMelSliders(){
@@ -1028,6 +1210,7 @@ function refreshAllEditors(){
   document.getElementById('melInstrument').value = editScene().instrument;
   syncMelSliders();
   applyMelSettings(editScene(), true);
+  updateLoadHint();
 }
 let stepDrumEls = [], stepRollEls = [], lastLitStep = -1;
 function cacheStepEls(){
@@ -1062,7 +1245,7 @@ KEYS.forEach(n=>{
     ev.preventDefault(); primeAudioSync();
     const sc = editScene();
     applyMelSettings(sc);
-    getInstrument(sc.instrument).triggerAttackRelease(n,'4n');
+    playMelNote(sc.instrument, n, '4n', undefined, humanVel(), sc.melSettings.oct);
   });
   kbEl.appendChild(b);
 });
@@ -1280,7 +1463,7 @@ function loadSongInto(obj){
     if(!s.melSettings) s.melSettings = defaultMelSettings();
     const d = defaultMelSettings();
     Object.keys(d).forEach(k=>{ if(s.melSettings[k]===undefined) s.melSettings[k]=d[k]; });
-    if(!INSTRUMENTS[s.instrument]) s.instrument = 'piano';
+    if(!INSTRUMENTS[s.instrument]) s.instrument = INSTRUMENT_ALIASES[s.instrument] || 'piano';
   });
   editSceneId = song.scenes[0].id;
   document.getElementById('projectName').value = song.name;
