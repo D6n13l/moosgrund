@@ -89,6 +89,15 @@
   }
   @keyframes bluete-dreh{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
   @keyframes bluete-dreh-rueck{ from{transform:rotate(0deg);} to{transform:rotate(-360deg);} }
+  .voicebar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+  .voicebar select{padding:5px 8px;font-size:0.7rem;}
+  .take-item{display:flex;align-items:center;gap:9px;padding:9px 11px;
+    border:1px solid var(--edge-soft);border-radius:10px;margin-bottom:7px;}
+  .take-item.current{border-color:var(--led-violet);
+    box-shadow:inset 0 0 0 1px rgba(155,122,222,0.25);}
+  .take-item .nm{flex:1;font-size:0.78rem;}
+  .take-item .meta{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--ink-faint);}
+  .take-item .mini{padding:6px 9px;font-size:0.62rem;flex-shrink:0;}
   .loadhint{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--ink-faint);
     flex-basis:100%;}
   .instrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px;}
@@ -344,7 +353,21 @@
       <div class="grain"></div>
       <div class="scenes" id="scenesBeats"></div>
       <div id="drumSeq"></div>
-      <div class="hint">16 Felder = 1 Takt. Jede Szene ist ein Baustein, den du im Set-Reiter zu einem ganzen Stück aneinanderreihst. Doppeltippen auf eine Szene benennt sie um.</div>
+      <div id="voiceSeq"></div>
+      <div class="voicebar">
+        <span class="ctl">Aufnahme
+          <select id="sceneTake"><option value="">– keine –</option></select>
+        </span>
+        <span class="ctl">alle
+          <select id="sceneEvery">
+            <option value="1">1 Takt</option>
+            <option value="2">2 Takte</option>
+            <option value="4">4 Takte</option>
+            <option value="8">8 Takte</option>
+          </select>
+        </span>
+      </div>
+      <div class="hint">16 Felder = 1 Takt. Die unterste Reihe setzt deine Stimme &mdash; jedes leuchtende Feld startet die Aufnahme an dieser Stelle im Takt. Doppeltippen auf eine Szene benennt sie um.</div>
     </div>
   </div>
 
@@ -459,18 +482,11 @@
         <span>Hall <input type="range" id="vocalVerb" min="0" max="100" value="18"></span>
         <span>Tonhöhe <input type="range" id="vocalPitch" min="-12" max="12" value="0"><span id="pitchVal">0</span></span>
       </div>
-      <div class="trimrow">
-        <span>Wiederholen alle
-          <select id="vocalEvery">
-            <option value="1">1 Takt</option>
-            <option value="2">2 Takte</option>
-            <option value="4" selected>4 Takte</option>
-            <option value="8">8 Takte</option>
-            <option value="0">nicht wiederholen</option>
-          </select>
-        </span>
-      </div>
       <div id="vocalStatus">Noch keine Aufnahme.</div>
+
+      <div class="sectionlabel">Aufnahmen</div>
+      <div id="takeList"></div>
+      <div class="hint">Jede Aufnahme bekommt einen Platz in der Liste. Im Beats-Reiter wählst du pro Szene, welche davon klingt und an welcher Stelle im Takt sie einsetzt. Start und Ende oben schneiden die gerade gewählte Aufnahme zu.</div>
       <div class="hint">Aufnahmen bleiben nur in der laufenden Sitzung &mdash; für Dauerhaftes nimm mit der Sprachmemo-App auf und lade die Datei.</div>
     </div>
   </div>
@@ -1001,7 +1017,8 @@ function emptyDrums(){
 function makeScene(name, preset){
   const s = {id:'s'+uid(), name, drums:emptyDrums(),
     bass:new Array(16).fill(null), mel:new Array(16).fill(null),
-    instrument:'piano', melSettings:defaultMelSettings()};
+    instrument:'piano', melSettings:defaultMelSettings(),
+    voice:new Array(16).fill(0), voiceTake:null, voiceEvery:1};
   if(preset==='intro'){
     s.drums.hatc=[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0];
     s.mel[0]='B3'; s.mel[6]='E4'; s.mel[12]='G4'; s.instrument='glocke';
@@ -1081,8 +1098,10 @@ Tone.Transport.scheduleRepeat((time)=>{
                 (scene.melSettings && scene.melSettings.oct) || 0);
   }
 
-  const every = Number(document.getElementById('vocalEvery').value);
-  if(step===0 && every>0 && bar % every===0) playVocalAt(time);
+  if(scene.voice && scene.voice[step]){
+    const every = scene.voiceEvery || 1;
+    if(bar % every === 0) playTake(scene.voiceTake, time);
+  }
 
   const localTick = tick;
   Tone.Draw.schedule(()=>{
@@ -1202,6 +1221,47 @@ DRUM_TRACKS.forEach(t=>{
   }
   row.appendChild(wrap); drumSeqEl.appendChild(row);
 });
+const voiceSeqEl=document.getElementById('voiceSeq');
+(function buildVoiceLane(){
+  const row=document.createElement('div'); row.className='row';
+  const label=document.createElement('div'); label.className='label'; label.textContent='STIMME';
+  row.appendChild(label);
+  const wrap=document.createElement('div'); wrap.className='steps16';
+  for(let s=0;s<STEPS;s++){
+    const b=document.createElement('button');
+    b.className='step voicestep'+(s%4===0?' beat':'');
+    b.dataset.step=s;
+    b.addEventListener('click', ()=>{
+      const sc=editScene();
+      if(!Array.isArray(sc.voice)) sc.voice=new Array(16).fill(0);
+      sc.voice[s]=sc.voice[s]?0:1;
+      markDirty(); refreshVoiceLane();
+    });
+    wrap.appendChild(b);
+  }
+  row.appendChild(wrap);
+  voiceSeqEl.appendChild(row);
+})();
+
+function refreshVoiceLane(){
+  const sc=editScene();
+  document.querySelectorAll('.voicestep').forEach(b=>{
+    const on = !!(sc.voice && sc.voice[Number(b.dataset.step)]);
+    b.style.color = '#e0559b';
+    b.style.background = on ? '#e0559b' : '';
+    b.classList.toggle('lit', on);
+  });
+}
+
+document.getElementById('sceneTake').addEventListener('change', e=>{
+  editScene().voiceTake = e.target.value || null;
+  markDirty();
+});
+document.getElementById('sceneEvery').addEventListener('change', e=>{
+  editScene().voiceEvery = Number(e.target.value) || 1;
+  markDirty();
+});
+
 function refreshDrums(){
   const sc=editScene();
   document.querySelectorAll('.drumstep').forEach(b=>{
@@ -1319,7 +1379,8 @@ function syncMelSliders(){
 }
 
 function refreshAllEditors(){
-  renderSceneChips(); refreshDrums(); refreshRolls();
+  renderSceneChips(); refreshDrums(); refreshRolls(); refreshVoiceLane();
+  renderTakeSelect();
   document.getElementById('melInstrument').value = editScene().instrument;
   syncMelSliders();
   applyMelSettings(editScene(), true);
@@ -1329,7 +1390,8 @@ let stepDrumEls = [], stepRollEls = [], lastLitStep = -1;
 function cacheStepEls(){
   stepDrumEls = []; stepRollEls = [];
   for(let s=0;s<STEPS;s++){
-    stepDrumEls[s] = [...document.querySelectorAll('.drumstep[data-step="'+s+'"]')];
+    stepDrumEls[s] = [...document.querySelectorAll('.drumstep[data-step="'+s+'"]'),
+                      ...document.querySelectorAll('.voicestep[data-step="'+s+'"]')];
     stepRollEls[s] = [...document.querySelectorAll('.roll-cell[data-step="'+s+'"]')];
   }
 }
@@ -1459,29 +1521,111 @@ document.getElementById('fillSetBtn').addEventListener('click', ()=>{
 /* ==========================================================
    VOCALS
    ========================================================== */
-let vocalBuffer=null, vocalPlayer=null, mediaRecorder=null, chunks=[];
+let mediaRecorder=null, chunks=[];
 const vocalPitch=new Tone.PitchShift(0);
 const vocalReverb=new Tone.Reverb({decay:2.8, wet:0.18});
 const vocalGainNode=new Tone.Gain(1);
 vocalPitch.chain(vocalReverb, vocalGainNode, masterGain);
 
-function playVocalAt(time){
-  if(!vocalBuffer||!vocalPlayer) return;
-  const dur=vocalBuffer.duration;
-  const s=Number(document.getElementById('trimStart').value)/100*dur;
-  const e=Number(document.getElementById('trimEnd').value)/100*dur;
-  try{ vocalPlayer.start(time, s, Math.max(0.05,e-s)); }catch(err){}
+/* Aufnahmen der laufenden Sitzung */
+const takes = [];          // {id,name,buffer,player,start,end}
+let currentTakeId = null;
+
+function takeById(id){ return takes.find(t=>t.id===id) || null; }
+function currentTake(){ return takeById(currentTakeId); }
+
+function playTake(id, time){
+  const t = takeById(id) || takes[0];
+  if(!t || !t.player) return;
+  const dur = t.buffer.duration;
+  const a = (t.start/100)*dur;
+  const b = (t.end/100)*dur;
+  try{ t.player.start(time, a, Math.max(0.05, b-a)); }catch(err){}
 }
+
 const statusEl=document.getElementById('vocalStatus');
-function loadDecoded(decoded, note){
-  vocalBuffer=decoded;
-  if(vocalPlayer){ try{ vocalPlayer.dispose(); }catch(e){} }
-  vocalPlayer=new Tone.Player().connect(vocalPitch);
-  vocalPlayer.buffer=new Tone.ToneAudioBuffer(decoded);
-  document.getElementById('trimStart').value=0;
-  document.getElementById('trimEnd').value=100;
+
+function addTake(decoded, name){
+  const t = {
+    id:'t'+uid(), name:name, buffer:decoded, start:0, end:100,
+    player:new Tone.Player().connect(vocalPitch)
+  };
+  t.player.buffer = new Tone.ToneAudioBuffer(decoded);
+  takes.push(t);
+  currentTakeId = t.id;
+  // neue Aufnahme sofort für die aktuelle Szene verfügbar machen
+  if(song && editScene() && !editScene().voiceTake) editScene().voiceTake = t.id;
+  syncTrimSliders();
   drawWaveform();
-  statusEl.textContent=note+' ('+decoded.duration.toFixed(1)+' s)';
+  renderTakes(); renderTakeSelect();
+  statusEl.textContent = name + ' · ' + decoded.duration.toFixed(1) + ' s';
+}
+
+function syncTrimSliders(){
+  const t = currentTake();
+  document.getElementById('trimStart').value = t ? t.start : 0;
+  document.getElementById('trimEnd').value   = t ? t.end   : 100;
+}
+
+function renderTakes(){
+  const el = document.getElementById('takeList');
+  if(!el) return;
+  el.innerHTML = '';
+  if(!takes.length){
+    const e=document.createElement('div'); e.className='empty';
+    e.textContent='Noch keine Aufnahme in dieser Sitzung.';
+    el.appendChild(e); return;
+  }
+  takes.forEach(t=>{
+    const row=document.createElement('div');
+    row.className='take-item'+(t.id===currentTakeId?' current':'');
+    const info=document.createElement('div'); info.style.flex='1';
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=t.name;
+    const mt=document.createElement('div'); mt.className='meta';
+    mt.textContent=t.buffer.duration.toFixed(1)+' s';
+    info.appendChild(nm); info.appendChild(mt); row.appendChild(info);
+
+    const sel=document.createElement('button'); sel.className='mini'; sel.textContent='Wählen';
+    sel.addEventListener('click', ()=>{ currentTakeId=t.id; syncTrimSliders(); drawWaveform(); renderTakes(); });
+    row.appendChild(sel);
+
+    const prev=document.createElement('button'); prev.className='mini'; prev.textContent='▶';
+    prev.addEventListener('click', async ()=>{
+      primeAudioSync(); if(!audioReady) await unlockAudio();
+      playTake(t.id, Tone.now());
+    });
+    row.appendChild(prev);
+
+    const del=document.createElement('button'); del.className='mini'; del.textContent='✕';
+    del.addEventListener('click', ()=>{
+      const i=takes.indexOf(t);
+      try{ t.player.dispose(); }catch(e){}
+      takes.splice(i,1);
+      if(currentTakeId===t.id) currentTakeId = takes.length ? takes[0].id : null;
+      song.scenes.forEach(sc=>{ if(sc.voiceTake===t.id) sc.voiceTake=null; });
+      syncTrimSliders(); drawWaveform(); renderTakes(); renderTakeSelect();
+    });
+    row.appendChild(del);
+
+    el.appendChild(row);
+  });
+}
+
+function renderTakeSelect(){
+  const sel=document.getElementById('sceneTake');
+  if(!sel || !song) return;
+  const sc=editScene();
+  sel.innerHTML='';
+  const none=document.createElement('option');
+  none.value=''; none.textContent= takes.length ? '– keine –' : '– keine Aufnahme –';
+  sel.appendChild(none);
+  takes.forEach(t=>{
+    const o=document.createElement('option');
+    o.value=t.id; o.textContent=t.name;
+    if(sc.voiceTake===t.id) o.selected=true;
+    sel.appendChild(o);
+  });
+  document.getElementById('sceneEvery').value = sc.voiceEvery || 1;
 }
 document.getElementById('recBtn').addEventListener('click', async ()=>{
   const btn=document.getElementById('recBtn');
@@ -1499,7 +1643,7 @@ document.getElementById('recBtn').addEventListener('click', async ()=>{
       const blob=new Blob(chunks,{type:mediaRecorder.mimeType||'audio/webm'});
       try{
         const decoded=await Tone.context.rawContext.decodeAudioData(await blob.arrayBuffer());
-        loadDecoded(decoded,'Aufnahme bereit');
+        addTake(decoded, 'Aufnahme ' + (takes.length+1));
       }catch(err){ statusEl.textContent='Aufnahme ließ sich nicht dekodieren. Bitte Datei laden.'; }
     };
     mediaRecorder.start();
@@ -1514,16 +1658,22 @@ document.getElementById('vocalFile').addEventListener('change', async e=>{
   primeAudioSync(); if(!audioReady) await unlockAudio();
   try{
     const decoded=await Tone.context.rawContext.decodeAudioData(await f.arrayBuffer());
-    loadDecoded(decoded,'Datei geladen');
+    addTake(decoded, f.name.replace(/\.[^.]+$/,'').slice(0,28) || ('Aufnahme '+(takes.length+1)));
   }catch(err){ statusEl.textContent='Diese Datei ließ sich nicht lesen.'; }
 });
 document.getElementById('playVocalBtn').addEventListener('click', async ()=>{
   primeAudioSync(); if(!audioReady) await unlockAudio();
-  playVocalAt(Tone.now());
+  playTake(currentTakeId, Tone.now());
 });
 document.getElementById('clearVocalBtn').addEventListener('click', ()=>{
-  vocalBuffer=null;
-  if(vocalPlayer){ try{ vocalPlayer.dispose(); }catch(e){} vocalPlayer=null; }
+  const t=currentTake();
+  if(t){
+    try{ t.player.dispose(); }catch(e){}
+    takes.splice(takes.indexOf(t),1);
+    song.scenes.forEach(sc=>{ if(sc.voiceTake===t.id) sc.voiceTake=null; });
+    currentTakeId = takes.length ? takes[0].id : null;
+  }
+  renderTakes(); renderTakeSelect(); syncTrimSliders();
   statusEl.textContent='Noch keine Aufnahme.';
   const c=document.getElementById('waveform');
   c.getContext('2d').clearRect(0,0,c.width,c.height);
@@ -1539,14 +1689,24 @@ document.getElementById('vocalPitch').addEventListener('input', e=>{
   document.getElementById('pitchVal').textContent=e.target.value;
 });
 ['trimStart','trimEnd'].forEach(id=>{
-  document.getElementById(id).addEventListener('input', drawWaveform);
+  document.getElementById(id).addEventListener('input', ()=>{
+    const t=currentTake();
+    if(t){
+      t.start=Number(document.getElementById('trimStart').value);
+      t.end=Number(document.getElementById('trimEnd').value);
+      if(t.end <= t.start){ t.end = Math.min(100, t.start+1);
+        document.getElementById('trimEnd').value = t.end; }
+    }
+    drawWaveform();
+  });
 });
 function drawWaveform(){
   const canvas=document.getElementById('waveform');
   const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(!vocalBuffer) return;
-  const data=vocalBuffer.getChannelData(0);
+  const take=currentTake();
+  if(!take) return;
+  const data=take.buffer.getChannelData(0);
   const w=canvas.width,h=canvas.height,mid=h/2;
   const step=Math.max(1,Math.ceil(data.length/w));
   ctx.strokeStyle='#5d7c4a'; ctx.lineWidth=1;
@@ -1577,6 +1737,9 @@ function loadSongInto(obj){
     const d = defaultMelSettings();
     Object.keys(d).forEach(k=>{ if(s.melSettings[k]===undefined) s.melSettings[k]=d[k]; });
     if(!INSTRUMENTS[s.instrument]) s.instrument = INSTRUMENT_ALIASES[s.instrument] || 'piano';
+    if(!Array.isArray(s.voice) || s.voice.length!==16) s.voice = new Array(16).fill(0);
+    if(s.voiceEvery===undefined) s.voiceEvery = 1;
+    if(s.voiceTake===undefined) s.voiceTake = null;
   });
   editSceneId = song.scenes[0].id;
   document.getElementById('projectName').value = song.name;
@@ -2082,6 +2245,7 @@ drawViz();
 (function init(){
   cacheStepEls();
   findSampleBase();
+  renderTakes();
   const idx = loadIndex();
   if(idx.length){
     const raw = store.get('moosgrund:song:'+idx[0].id);
