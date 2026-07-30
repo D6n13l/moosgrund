@@ -983,6 +983,7 @@
             <option value="stimme_uh">Frauenstimme Uh</option>
             <option value="stimme_ih">Frauenstimme Ih</option>
             <option value="frauenchor">Frauenchor</option>
+            <option value="jodel">Jodelstimme</option>
             <option value="kinderchor">Kinderchor</option>
           </optgroup>
           <optgroup label="Synth">
@@ -994,6 +995,7 @@
         <div class="instrow-actions">
           <button id="tryInstBtn" class="mini">Anhören</button>
           <button id="retrySamplesBtn" class="mini" title="Aufnahmen erneut suchen">Neu laden</button>
+          <button id="jodelBtn" class="mini" title="Jodelfigur in diese Ebene schreiben">Jodelfigur</button>
         </div>
         <span id="instLoad" class="loadhint"></span>
       </div>
@@ -1306,6 +1308,11 @@ async function findDrumBase(){
     Object.values(layerChains).forEach(c=>{
       Object.values(c.voices).forEach(v=>{
         if(v.def.sample && v.def.sample.src==='berklee' && !v.sampler) attachSampler(v, c);
+        if(v.def.register && (!v.brust || !v.brust.sampler)){
+          loeseTeilstimme(v.brust); loeseTeilstimme(v.kopf);
+          v.brust = baueTeilstimme(v.def.brust, c);
+          v.kopf  = baueTeilstimme(v.def.kopf,  c);
+        }
       });
     });
   }
@@ -1483,6 +1490,7 @@ function disposeChain(layerId){
     if(v.sampler){ try{ v.sampler.dispose(); }catch(e){} }
     if(v.fmt) v.fmt.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
     if(v.fx)  v.fx.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
+    loeseTeilstimme(v.brust); loeseTeilstimme(v.kopf);
   });
   if(c.choir) Object.values(c.choir).forEach(n=>{ try{ n.dispose(); }catch(e){} });
   [c.filter,c.blend,c.gain,c.send,c.drive,c.bite,c.chorus,c.out]
@@ -1502,6 +1510,42 @@ function makeFormant(target, f1, f2){
   input.connect(bp2); bp2.connect(g2); g2.connect(target);
   input.connect(dry); dry.connect(target);
   return {input, nodes:[input,bp1,bp2,g1,g2,dry]};
+}
+
+/* Eine Teilstimme: eigene Aufnahmen mit eigener Formantlage.
+   Damit lassen sich Brust- und Kopfregister getrennt ansteuern. */
+function baueTeilstimme(spec, c){
+  const t = {ready:false, failed:false, sampler:null, fmt:null};
+  let ziel = c.filter;
+  if(spec.formant){
+    t.fmt = makeFormant(ziel, spec.formant[0], spec.formant[1]);
+    ziel = t.fmt.input;
+  }
+  t.ziel = ziel;
+  const base = voiceBase();
+  if(base && spec.files){
+    try{
+      t.sampler = new Tone.Sampler({
+        urls: spec.files, baseUrl: base,
+        onload: ()=>{ t.ready = true; updateLoadHint(); },
+        onerror: ()=>{ t.failed = true; t.sampler = null; }
+      });
+      t.sampler.volume.value = (spec.vol === undefined ? -9 : spec.vol);
+      t.sampler.connect(ziel);
+    }catch(e){ t.sampler = null; }
+  }
+  return t;
+}
+function loeseTeilstimme(t){
+  if(!t) return;
+  if(t.sampler){ try{ t.sampler.dispose(); }catch(e){} }
+  if(t.fmt) t.fmt.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
+}
+function tonZuMidi(n){
+  const T={'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,
+           'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11};
+  const m=/^([A-G][#b]?)(-?\d)$/.exec(n||'');
+  return m ? T[m[1]] + (Number(m[2])+1)*12 : 60;
 }
 
 /* Kleine Effektkette, die einzelne Instrumente brauchen:
@@ -1798,6 +1842,15 @@ const INSTRUMENTS = {
       'A5':'femalevoice_aa_A5.mp3','C6':'femalevoice_aa_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.8, oscillator:{type:'sine'},
       envelope:{attack:0.28, decay:0.3, sustain:0.9, release:1.3}, modulation:{type:'sine'}}},
+  jodel:{label:'Jodelstimme', vol:-8, register:71,
+    brust:{vol:-7, formant:[730,1150], files:{
+      'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3',
+      'Eb4':'femalevoice_aa_Eb4.mp3','A4':'femalevoice_aa_A4.mp3'}},
+    kopf:{vol:-11, formant:[420,2700], files:{
+      'A4':'femalevoice_oo_A4.mp3','Db5':'femalevoice_oo_Db5.mp3',
+      'A5':'femalevoice_oo_A5.mp3','C6':'femalevoice_oo_C6.mp3'}},
+    voice:Tone.AMSynth, opts:{harmonicity:1.5, oscillator:{type:'sine'},
+      envelope:{attack:0.02, decay:0.2, sustain:0.8, release:0.3}, modulation:{type:'sine'}}},
   frauenchor:{label:'Frauenchor', vol:-11, sample:{src:'berklee', files:{
       'A3':'femalevoices_aa2_A3.mp3','C#4':'femalevoices_aa2_C#4.mp3',
       'A4':'femalevoices_aa2_A4.mp3','C5':'femalevoices_aa2_C5.mp3',
@@ -1848,6 +1901,11 @@ function getVoice(layerId, kind){
   }
   v.ziel = ziel;
 
+  if(def.register){
+    v.brust = baueTeilstimme(def.brust, c);
+    v.kopf  = baueTeilstimme(def.kopf,  c);
+  }
+
   v.synth = new Tone.PolySynth(def.voice || Tone.Synth, def.opts || {});
   v.synth.volume.value = def.vol || -12;
   v.synth.connect(ziel);
@@ -1867,6 +1925,15 @@ function playLayerNote(layer, note, dur, time, vel){
   const v = getVoice(layer.id, layer.instrument);
   const oct = (layer.settings && layer.settings.oct) || 0;
   const n = shiftNote(note, oct*12 + (v.def.shift||0));
+
+  /* Jodeln: unterhalb der Grenze Brust-, darueber Kopfstimme */
+  if(v.def.register){
+    const teil = tonZuMidi(n) >= v.def.register ? v.kopf : v.brust;
+    if(teil && teil.sampler && teil.ready){
+      teil.sampler.triggerAttackRelease(n, dur, time, vel);
+      return;
+    }
+  }
   if(v.sampler && v.ready) v.sampler.triggerAttackRelease(n, dur, time, vel);
   else v.synth.triggerAttackRelease(n, dur, time, vel);
 }
@@ -3020,6 +3087,24 @@ document.getElementById('retrySamplesBtn').addEventListener('click', async ()=>{
   if(el) el.textContent='suche Aufnahmen …';
   const b=await findSampleBase();
   if(el && !b) el.textContent='keine Quelle erreichbar – Ersatzklang';
+});
+
+/* Jodeln lebt vom Sprung zwischen den Registern – diese Figur setzt ihn. */
+document.getElementById('jodelBtn').addEventListener('click', ()=>{
+  const L = editLayer();
+  if(!L) return;
+  const tief = ['A3','C4','E4','A3','C4','E4','D4','A3'];
+  const hoch = ['A4','E5','A4','C5','E5','A4','C5','A4'];
+  L.mel = new Array(STEPS).fill(null);
+  L.melLen = new Array(STEPS).fill(1);
+  for(let p=0; p<8; p++){
+    L.mel[p*2]   = tief[p];       // Brustregister auf der Zaehlzeit
+    L.mel[p*2+1] = hoch[p];       // Kopfregister auf dem Achtel danach
+  }
+  if(INSTRUMENTS.jodel) L.instrument = 'jodel';
+  getVoice(L.id, L.instrument);
+  markDirty();
+  refreshMelodyUI();
 });
 
 document.getElementById('tryInstBtn').addEventListener('click', async ()=>{
