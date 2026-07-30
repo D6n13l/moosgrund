@@ -830,6 +830,13 @@
       <div class="scenes" id="scenesBeats"></div>
       <div id="drumSeq"></div>
       <div id="voiceSeq"></div>
+      <div class="sectionlabel">Schlagzeug</div>
+      <div class="instrow">
+        <span class="fieldlabel">Set</span>
+        <select id="kitSelect"></select>
+        <span id="kitHint" class="loadhint"></span>
+      </div>
+
       <div class="sectionlabel">Kickbass</div>
       <div class="trimrow">
         <span>Druck <input type="range" id="kDruck" min="0" max="100" value="45"></span>
@@ -1161,6 +1168,84 @@ const subEnv  = new Tone.AmplitudeEnvelope({attack:0.004, decay:0.36,
   sustain:0, release:0.12});
 subOsc.disconnect(); subOsc.connect(subEnv); subEnv.connect(subGain);
 
+/* Echte Schlagzeugaufnahmen; dieselben Quellen wie bei den Instrumenten. */
+const DRUM_BASES = [
+  'https://tonejs.github.io/audio/drum-samples/',
+  'https://cdn.jsdelivr.net/gh/Tonejs/audio@master/drum-samples/',
+  'https://raw.githubusercontent.com/Tonejs/audio/master/drum-samples/'
+];
+let DRUM_BASE = null, drumSearchDone = false;
+const DRUM_KITS = [
+  {id:'acoustic-kit',    name:'Akustik'},
+  {id:'breakbeat9',      name:'Breakbeat'},
+  {id:'breakbeat13',     name:'Breakbeat tief'},
+  {id:'Techno',          name:'Techno'},
+  {id:'Stark',           name:'Stark'},
+  {id:'Kit3',            name:'Studio'},
+  {id:'Kit8',            name:'Studio weit'},
+  {id:'R8',              name:'R8'},
+  {id:'LINN',            name:'Linn'},
+  {id:'CR78',            name:'CR-78'},
+  {id:'KPR77',           name:'KPR-77'},
+  {id:'TheCheebacabra1', name:'Rau'},
+  {id:'Bongos',          name:'Bongos'}
+];
+const drumSamplers = {kick:null, snare:null, hihat:null};
+let drumReady = false, drumFailed = false;
+
+async function findDrumBase(){
+  for(const b of DRUM_BASES){
+    try{
+      const r = await fetch(b + 'acoustic-kit/kick.mp3', {mode:'cors'});
+      if(r.ok){
+        const buf = await r.arrayBuffer();
+        if(buf.byteLength > 1000){ DRUM_BASE = b; break; }
+      }
+    }catch(e){}
+  }
+  drumSearchDone = true;
+  if(DRUM_BASE) loadKit();
+  updateKitHint();
+  return DRUM_BASE;
+}
+
+function loadKit(){
+  if(!DRUM_BASE || !song) return;
+  const kit = song.kit || 'acoustic-kit';
+  ['kick','snare','hihat'].forEach(part=>{
+    if(drumSamplers[part]){ try{ drumSamplers[part].dispose(); }catch(e){} drumSamplers[part]=null; }
+  });
+  drumReady = false; drumFailed = false;
+  let pending = 3;
+  const done = ()=>{ if(--pending===0){ drumReady = true; updateKitHint(); } };
+  const mk = (part, target)=>{
+    try{
+      const sp = new Tone.Sampler({
+        urls:{ C2: part + '.mp3' },
+        baseUrl: DRUM_BASE + kit + '/',
+        onload: done,
+        onerror: ()=>{ drumFailed = true; updateKitHint(); }
+      });
+      sp.connect(target);
+      drumSamplers[part] = sp;
+    }catch(e){ drumFailed = true; }
+  };
+  mk('kick',  kickSat);
+  mk('snare', masterGain);
+  mk('hihat', masterGain);
+  updateKitHint();
+}
+
+function updateKitHint(){
+  const el = document.getElementById('kitHint');
+  if(!el) return;
+  if(drumReady)            el.textContent = 'echte Aufnahme';
+  else if(!drumSearchDone) el.textContent = 'suche Aufnahmen …';
+  else if(!DRUM_BASE)      el.textContent = 'nicht erreichbar – Ersatzklang';
+  else if(drumFailed)      el.textContent = 'Set fehlt – Ersatzklang';
+  else                     el.textContent = 'lädt Set …';
+}
+
 const KICK_DEFAULT = {druck:45, tiefe:42, laenge:45, sub:35};
 function kickSettings(){
   if(!song.kick) song.kick = Object.assign({}, KICK_DEFAULT);
@@ -1181,9 +1266,19 @@ function applyKick(){
   subEnv.decay = dec * 1.15;
   subGain.gain.rampTo((k.sub/100)*0.55, 0.05);
 }
+function kickNote(){
+  const off = Math.round(-7 + (kickSettings().tiefe/100)*10);   // -7 .. +3 Halbtoene
+  try{ return Tone.Frequency('C2').transpose(off).toNote(); }catch(e){ return 'C2'; }
+}
 function triggerKick(time){
   const f = kickFreq();
-  kick.triggerAttackRelease(f, '8n', time);
+  const k = kickSettings();
+  const dur = 0.16 + (k.laenge/100)*0.62;
+  if(drumSamplers.kick && drumReady){
+    drumSamplers.kick.triggerAttackRelease(kickNote(), dur, time);
+  } else {
+    kick.triggerAttackRelease(f, '8n', time);
+  }
   if(kickSettings().sub > 0){
     subOsc.frequency.setValueAtTime(f*0.5, time);
     subEnv.triggerAttackRelease(0.05, time);
@@ -1204,9 +1299,18 @@ hatOpen.connect(masterGain); hatOpen.volume.value = -20;
 
 function triggerDrum(key, time){
   if(key==='kick')  triggerKick(time);
-  if(key==='snare') snareNoise.triggerAttackRelease('16n',time);
-  if(key==='hatc')  hatClosed.triggerAttackRelease('32n',time);
-  if(key==='hato')  hatOpen.triggerAttackRelease('8n',time);
+  if(key==='snare'){
+    if(drumSamplers.snare && drumReady) drumSamplers.snare.triggerAttackRelease('C2', 0.35, time);
+    else snareNoise.triggerAttackRelease('16n',time);
+  }
+  if(key==='hatc'){
+    if(drumSamplers.hihat && drumReady) drumSamplers.hihat.triggerAttackRelease('C2', 0.05, time);
+    else hatClosed.triggerAttackRelease('32n',time);
+  }
+  if(key==='hato'){
+    if(drumSamplers.hihat && drumReady) drumSamplers.hihat.triggerAttackRelease('C2', 0.3, time);
+    else hatOpen.triggerAttackRelease('8n',time);
+  }
 }
 
 const bassFilter = new Tone.AutoFilter({frequency:'8n', depth:0.7, baseFrequency:150, octaves:3}).start();
@@ -1613,12 +1717,12 @@ function makeScene(name, preset){
 }
 function blankSong(){
   const s = makeScene('Szene 1');
-  return {id:'p'+uid(), name:'Neues Set', bpm:172, kick:Object.assign({}, KICK_DEFAULT),
+  return {id:'p'+uid(), name:'Neues Set', bpm:172, kick:Object.assign({}, KICK_DEFAULT), kit:'acoustic-kit',
           scenes:[s], arrangement:[{sceneId:s.id, bars:16}]};
 }
 function demoSong(){
   const a=makeScene('Intro','intro'), b=makeScene('Drop','drop'), c=makeScene('Break','break');
-  return {id:'p'+uid(), name:'Erstes Set', bpm:172, kick:Object.assign({}, KICK_DEFAULT), scenes:[a,b,c],
+  return {id:'p'+uid(), name:'Erstes Set', bpm:172, kick:Object.assign({}, KICK_DEFAULT), kit:'acoustic-kit', scenes:[a,b,c],
     arrangement:[{sceneId:a.id,bars:16},{sceneId:b.id,bars:32},{sceneId:c.id,bars:16},{sceneId:b.id,bars:32}]};
 }
 
@@ -1828,12 +1932,26 @@ function refreshVoiceLane(){
   });
 }
 
+(function buildKitSelect(){
+  const sel=document.getElementById('kitSelect');
+  DRUM_KITS.forEach(k=>{
+    const o=document.createElement('option');
+    o.value=k.id; o.textContent=k.name; sel.appendChild(o);
+  });
+  sel.addEventListener('change', e=>{
+    song.kit = e.target.value;
+    loadKit(); markDirty();
+  });
+})();
+
 const KICK_SLIDERS=[{id:'kDruck',key:'druck'},{id:'kTiefe',key:'tiefe'},
                     {id:'kLaenge',key:'laenge'},{id:'kSub',key:'sub'}];
 KICK_SLIDERS.forEach(sl=>{
   document.getElementById(sl.id).addEventListener('input', e=>{
     kickSettings()[sl.key] = Number(e.target.value);
-    applyKick(); syncKickUI(); markDirty();
+    applyKick(); syncKickUI();
+  document.getElementById('kitSelect').value = song.kit;
+  loadKit(); markDirty();
   });
 });
 document.getElementById('kTest').addEventListener('click', async ()=>{
@@ -1845,7 +1963,9 @@ document.getElementById('kTest').addEventListener('click', async ()=>{
 function syncKickUI(){
   const k = kickSettings();
   KICK_SLIDERS.forEach(sl=>{ document.getElementById(sl.id).value = k[sl.key]; });
-  document.getElementById('kHz').textContent = Math.round(kickFreq()) + ' Hz';
+  const off = Math.round(-7 + (k.tiefe/100)*10);
+  document.getElementById('kHz').textContent =
+    (drumReady ? (off>0?'+':'') + off + ' HT' : Math.round(kickFreq()) + ' Hz');
 }
 
 document.getElementById('sceneTake').addEventListener('change', e=>{
@@ -2509,12 +2629,15 @@ function loadSongInto(obj){
     if(s.voiceTake===undefined) s.voiceTake = null;
   });
   if(!song.kick) song.kick = Object.assign({}, KICK_DEFAULT);
+  if(!song.kit || !DRUM_KITS.some(k=>k.id===song.kit)) song.kit = 'acoustic-kit';
   editSceneId = song.scenes[0].id;
   document.getElementById('projectName').value = song.name;
   document.getElementById('tempo').value = song.bpm;
   document.getElementById('tempoVal').textContent = song.bpm;
   Tone.Transport.bpm.value = song.bpm;
   applyKick(); syncKickUI();
+  document.getElementById('kitSelect').value = song.kit;
+  loadKit();
   refreshAllEditors(); renderArrangement(); markClean();
 }
 function saveCurrent(){
@@ -3034,6 +3157,7 @@ drawViz();
 (function init(){
   cacheStepEls();
   findSampleBase();
+  findDrumBase();
   renderTakes();
   const idx = loadIndex();
   if(idx.length){
