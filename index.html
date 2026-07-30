@@ -946,6 +946,17 @@
             <option value="kalimba">Kalimba</option>
             <option value="glocke">Glocke</option>
           </optgroup>
+          <optgroup label="Balkan">
+            <option value="balalaika">Balalaika</option>
+            <option value="tamburica">Tamburica</option>
+            <option value="ziehharmonika">Ziehharmonika</option>
+            <option value="bandoneon">Bandoneon</option>
+            <option value="hackbrett">Hackbrett</option>
+            <option value="duduk">Duduk</option>
+            <option value="zurna">Zurna</option>
+            <option value="kaval">Kaval</option>
+            <option value="balkanblech">Balkanblech</option>
+          </optgroup>
           <optgroup label="Stimmen">
             <option value="stimme_aa">Frauenstimme Ah</option>
             <option value="stimme_oo">Frauenstimme Oh</option>
@@ -1449,6 +1460,7 @@ function disposeChain(layerId){
     try{ v.synth.dispose(); }catch(e){}
     if(v.sampler){ try{ v.sampler.dispose(); }catch(e){} }
     if(v.fmt) v.fmt.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
+    if(v.fx)  v.fx.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
   });
   if(c.choir) Object.values(c.choir).forEach(n=>{ try{ n.dispose(); }catch(e){} });
   [c.filter,c.blend,c.gain,c.send,c.drive,c.bite,c.chorus,c.out]
@@ -1468,6 +1480,23 @@ function makeFormant(target, f1, f2){
   input.connect(bp2); bp2.connect(g2); g2.connect(target);
   input.connect(dry); dry.connect(target);
   return {input, nodes:[input,bp1,bp2,g1,g2,dry]};
+}
+
+/* Kleine Effektkette, die einzelne Instrumente brauchen:
+   Tremolo fuer das Balalaika-Zittern, Schwebung fuer die Musette-Stimmung
+   der Ziehharmonika. Wird nur angelegt, wenn ein Instrument sie verlangt. */
+function makeVoiceFX(def, target){
+  const nodes = [];
+  let last = target;
+  if(def.fx && def.fx.chorus){
+    const ch = new Tone.Chorus(def.fx.chorus).start();
+    ch.connect(last); nodes.push(ch); last = ch;
+  }
+  if(def.fx && def.fx.trem){
+    const tr = new Tone.Tremolo(def.fx.trem).start();
+    tr.connect(last); nodes.push(tr); last = tr;
+  }
+  return {input:last, nodes};
 }
 
 /* Vokalformanten fuer den Kinderchor, ebenfalls pro Ebene */
@@ -1671,6 +1700,55 @@ const INSTRUMENTS = {
       envelope:{attack:0.002, decay:2.2, sustain:0, release:2.4},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.8, sustain:0, release:0.8}}},
 
+  /* ---- Balkan ---- */
+  balalaika:{label:'Balalaika', vol:-8, shift:7, formant:[950,2500],
+    fx:{trem:{frequency:8.5, depth:0.42, spread:0}},
+    sample:{folder:'guitar-nylon',
+      notes:['E2','A2','B2','E3','A3','B3','E4','A4','E5']},
+    voice:Tone.FMSynth, opts:{harmonicity:2.0, modulationIndex:3, oscillator:{type:'triangle'},
+      envelope:{attack:0.004, decay:0.7, sustain:0.02, release:0.5},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.003, decay:0.3, sustain:0, release:0.3}}},
+  tamburica:{label:'Tamburica', vol:-8, shift:5, formant:[1100,2800],
+    sample:{folder:'guitar-nylon',
+      notes:['E2','A2','B2','E3','A3','B3','E4','A4','E5']},
+    voice:Tone.FMSynth, opts:{harmonicity:2.0, modulationIndex:2.6, oscillator:{type:'triangle'},
+      envelope:{attack:0.004, decay:0.8, sustain:0.02, release:0.6},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.003, decay:0.3, sustain:0, release:0.3}}},
+  ziehharmonika:{label:'Ziehharmonika', vol:-11,
+    fx:{chorus:{frequency:0.9, delayTime:6, depth:0.55}},
+    formant:[620,1500],
+    sample:{folder:'harmonium', notes:['C2','Fs2','C3','Fs3','C4','A4','C5']},
+    voice:Tone.AMSynth, opts:{harmonicity:2.002, oscillator:{type:'sawtooth'},
+      envelope:{attack:0.05, decay:0.1, sustain:1, release:0.28}, modulation:{type:'sine'}}},
+  bandoneon:{label:'Bandoneon', vol:-11, shift:-5,
+    fx:{chorus:{frequency:0.5, delayTime:9, depth:0.35}},
+    formant:[480,1200],
+    sample:{folder:'harmonium', notes:['C2','Fs2','C3','Fs3','C4','A4','C5']},
+    voice:Tone.AMSynth, opts:{harmonicity:2.001, oscillator:{type:'sawtooth'},
+      envelope:{attack:0.07, decay:0.12, sustain:1, release:0.35}, modulation:{type:'sine'}}},
+  hackbrett:{label:'Hackbrett', vol:-9, shift:12, formant:[1400,3200],
+    sample:{folder:'harp', notes:['A2','C3','E3','G3','B3','D4','A4','E5']},
+    voice:Tone.FMSynth, opts:{harmonicity:3.01, modulationIndex:4, oscillator:{type:'sine'},
+      envelope:{attack:0.002, decay:0.8, sustain:0.01, release:0.7},
+      modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.3, sustain:0, release:0.3}}},
+  duduk:{label:'Duduk', vol:-10, shift:-5, formant:[520,1150],
+    sample:{folder:'clarinet', notes:['D3','F3','As3','D4','F4','As4','D5','F5','As5']},
+    voice:Tone.FMSynth, opts:{harmonicity:2.0, modulationIndex:1.4, oscillator:{type:'sine'},
+      envelope:{attack:0.11, decay:0.18, sustain:0.85, release:0.55}}},
+  zurna:{label:'Zurna', vol:-15, shift:7, formant:[980,2100],
+    sample:{folder:'saxophone', notes:['Cs3','E3','G3','As3','Cs4','E4','G4','As4','Cs5']},
+    voice:Tone.FMSynth, opts:{harmonicity:1.5, modulationIndex:6, oscillator:{type:'sawtooth'},
+      envelope:{attack:0.05, decay:0.15, sustain:0.85, release:0.3}}},
+  kaval:{label:'Kaval', vol:-11, shift:-2, formant:[700,1900],
+    sample:{folder:'flute', notes:['C4','E4','A4','C5','E5','A5','C6','E6']},
+    voice:Tone.Synth, opts:{oscillator:{type:'sine'},
+      envelope:{attack:0.14, decay:0.2, sustain:0.78, release:0.6}}},
+  balkanblech:{label:'Balkanblech', vol:-14, formant:[1050,2200],
+    sample:{folder:'trumpet',
+      notes:['F3','A3','C4','Ds4','F4','G4','As4','F5','A5']},
+    voice:Tone.FMSynth, opts:{harmonicity:1.005, modulationIndex:5, oscillator:{type:'triangle'},
+      envelope:{attack:0.05, decay:0.2, sustain:0.7, release:0.3}}},
+
   /* ---- Stimmen ---- */
   stimme_aa:{label:'Frauenstimme Ah', vol:-9, sample:{src:'berklee', files:{
       'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3','Eb4':'femalevoice_aa_Eb4.mp3',
@@ -1741,6 +1819,10 @@ function getVoice(layerId, kind){
   if(def.formant){
     v.fmt = makeFormant(ziel, def.formant[0], def.formant[1]);
     ziel = v.fmt.input;
+  }
+  if(def.fx){
+    v.fx = makeVoiceFX(def, ziel);
+    ziel = v.fx.input;
   }
   v.ziel = ziel;
 
@@ -1838,7 +1920,7 @@ function humanVel(){ return 0.72 + Math.random()*0.28; }
    ========================================================== */
 const STEPS = 16;
 const BASS_SCALE = ['E1','F1','F#1','G1','A1','B1','C2','D2','E2','F#2','G2','A2'];
-const MEL_SCALE  = ['E3','F3','F#3','G3','A3','B3','C4','D4','E4','F#4','G4',
+const MEL_SCALE  = ['E3','F3','F#3','G3','G#3','A3','B3','C4','D4','E4','F#4','G4','G#4',
                     'A4','B4','C5','D5','E5','F#5','G5','A5'];
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
