@@ -1078,6 +1078,7 @@
         <button id="addBlockBtn">Abschnitt</button>
         <button id="fillSetBtn">6 Min füllen</button>
         <button id="modeBtn">Szene</button>
+        <button id="folgeBtn" class="primary">Folgen</button>
       </div>
       <div class="hint">Im Modus „Set“ läuft das ganze Arrangement von vorne bis hinten. Im Modus „Szene“ wiederholt sich nur der Baustein, an dem du gerade arbeitest.</div>
     </div>
@@ -2234,6 +2235,7 @@ function markClean(){ dirty = false; document.getElementById('saveState').textCo
    TRANSPORT
    ========================================================== */
 let isPlaying=false, playMode='scene', tick=0, currentStep=0, soundingSceneId=null;
+let folgeSzene = true;   // Raster folgt der klingenden Szene
 
 function totalBars(){ return song.arrangement.reduce((a,b)=>a+b.bars,0); }
 function barSeconds(){ return (60/Tone.Transport.bpm.value)*4; }
@@ -2300,8 +2302,16 @@ Tone.Transport.scheduleRepeat((time)=>{
   }
 
   const localTick = tick;
+  const zeigeSzene = scene.id;
   Tone.Draw.schedule(()=>{
-    currentStep = step; soundingSceneId = scene.id;
+    currentStep = step; soundingSceneId = zeigeSzene;
+    /* Im Set-Modus zeigt das Raster immer, was gerade klingt. */
+    if(playMode === 'set' && folgeSzene && editSceneId !== zeigeSzene){
+      editSceneId = zeigeSzene;
+      const sc2 = editScene();
+      if(sc2 && sc2.layers && sc2.layers.length) editLayerId = sc2.layers[0].id;
+      refreshAllEditors();
+    }
     updatePlayheads(); updateTimelineCursor(localTick);
     updatePosition(localTick);          /* setzt auch die Abschnitts-Markierung */
     updateSceneChipHighlight();
@@ -2336,6 +2346,11 @@ document.getElementById('tempo').addEventListener('input', e=>{
   document.getElementById('tempoVal').textContent = song.bpm;
   renderArrangement(); markDirty();
 });
+document.getElementById('folgeBtn').addEventListener('click', e=>{
+  folgeSzene = !folgeSzene;
+  e.target.classList.toggle('primary', folgeSzene);
+});
+
 document.getElementById('modeBtn').addEventListener('click', ()=>{
   playMode = playMode==='scene' ? 'set':'scene';
   document.getElementById('modeBtn').textContent=(playMode==='set'?'Set':'Szene');
@@ -2443,7 +2458,16 @@ function renderSceneChips(){
       const lamp=document.createElement('span'); lamp.className='led';
       b.appendChild(lamp);
       b.appendChild(document.createTextNode(s.name));
-      b.addEventListener('click', ()=>{ editSceneId=s.id; refreshAllEditors(); });
+      b.addEventListener('click', ()=>{
+        editSceneId=s.id;
+        /* Bewusste Auswahl haelt das Mitlaufen an, sonst springt es sofort zurueck. */
+        if(isPlaying && playMode==='set' && folgeSzene){
+          folgeSzene = false;
+          const fb = document.getElementById('folgeBtn');
+          if(fb) fb.classList.remove('primary');
+        }
+        refreshAllEditors();
+      });
       b.addEventListener('dblclick', ()=>{
         const n=prompt('Name der Szene', s.name);
         if(n){ s.name=n; markDirty(); refreshAllEditors(); renderArrangement(); }
@@ -3215,9 +3239,15 @@ function fmt(sec){
   return m+':'+String(s).padStart(2,'0');
 }
 function updateTimelineCursor(t){
-  if(playMode!=='set'){ document.getElementById('tlCursor').style.left='0'; return; }
+  const c = document.getElementById('tlCursor');
+  if(!c) return;
+  if(playMode!=='set'){
+    /* Im Szenen-Modus zeigt das Band den Fortschritt im laufenden Takt. */
+    c.style.left = ((t % STEPS) / STEPS * 100) + '%';
+    return;
+  }
   const bars=totalBars(); if(!bars) return;
-  document.getElementById('tlCursor').style.left = Math.min(100,(t/STEPS)/bars*100)+'%';
+  c.style.left = Math.min(100,(t/STEPS)/bars*100)+'%';
 }
 let arrEls = [], lastPosText = '';
 function cacheArrEls(){ arrEls = [...document.querySelectorAll('.arr-block')]; }
@@ -3247,6 +3277,16 @@ function updatePosition(t, force){
     const sc = editScene();
     const txt = '<b>' + (sc ? sc.name : '') + '</b><span class="sep">·</span>Zählzeit ' + beat;
     if(txt !== lastPosText){ el.innerHTML = txt; lastPosText = txt; }
+    /* Abschnitte dieser Szene zeigen den Takt-Fortschritt */
+    if(!arrEls.length) cacheArrEls();
+    const pct = (t % STEPS) / STEPS * 100;
+    arrEls.forEach(elem=>{
+      const blk = song.arrangement[Number(elem.dataset.idx)];
+      const an = blk && sc && blk.sceneId === sc.id;
+      elem.classList.toggle('sounding', !!an);
+      const p = elem.querySelector('.arr-prog');
+      if(p) p.style.width = an ? pct+'%' : '0';
+    });
     return;
   }
 
