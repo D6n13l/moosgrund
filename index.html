@@ -505,20 +505,14 @@
 
   /* ---------- piano roll ---------- */
   .roll{border:none;border-radius:0;background:transparent;overflow:visible;}
-  .roll-row.aus{display:none;}
-  .rollbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
-  .rollbar .bereich{font-family:'IBM Plex Mono',monospace;font-size:0.66rem;
-    letter-spacing:0.06em;color:var(--ink-soft);min-width:78px;}
-  .rollbar .mini{padding:7px 13px;font-size:0.72rem;}
-  .rollbar .aussen{font-size:0.66rem;color:var(--led-amber);}
-  .rollbar .aussen.leer{color:var(--ink-faint);opacity:0.5;}
-  .roll-row{display:grid;grid-template-columns:52px repeat(16,1fr);gap:3px;
+  .roll-row{display:grid;grid-template-columns:44px repeat(16,1fr);gap:3px;
     align-items:center;margin-bottom:3px;}
-  .roll-note{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--ink-faint);
-    padding:0 7px 0 0;display:flex;align-items:center;justify-content:flex-end;
+  .roll-note{font-family:'IBM Plex Mono',monospace;font-size:0.55rem;color:var(--ink-faint);
+    padding:0 6px 0 0;display:flex;align-items:center;justify-content:flex-end;
     letter-spacing:0.04em;}
   .roll-note.root{color:var(--ink-soft);font-weight:500;}
-  .roll-cell{aspect-ratio:1;border-radius:50%;border:1px solid rgba(255,255,255,0.30);
+  .roll-cell{height:clamp(11px,3.9vw,19px);border-radius:50%;
+    border:1px solid rgba(255,255,255,0.30);
     background:rgba(255,255,255,0.02);cursor:pointer;padding:0;min-width:0;
     transition:box-shadow .1s, background .1s;}
   .roll-cell.beatline{border-color:rgba(255,255,255,0.62);}
@@ -1004,12 +998,6 @@
         <span>Elektronisch <input type="range" id="melElec" min="0" max="100" value="0"></span>
       </div>
 
-      <div class="rollbar">
-        <button id="melUp" class="mini">▲</button>
-        <button id="melDown" class="mini">▼</button>
-        <span class="bereich" id="melBereich">–</span>
-        <span class="aussen" id="melAussen"></span>
-      </div>
       <div class="roll" id="melRoll"></div>
       <div class="sectionlabel">Frei dazuspielen</div>
       <div class="keys" id="keyboard"></div>
@@ -1937,8 +1925,8 @@ function humanVel(){ return 0.72 + Math.random()*0.28; }
    ========================================================== */
 const STEPS = 16;
 const BASS_SCALE = ['E1','F1','F#1','G1','A1','B1','C2','D2','E2','F#2','G2','A2'];
-const MEL_SCALE  = ['E3','F3','F#3','G3','G#3','A3','B3','C4','D4','E4','F#4','G4','G#4',
-                    'A4','B4','C5','D5','E5','F#5','G5','A5'];
+const MEL_SCALE  = ['E3','F3','F#3','G3','G#3','A3','B3','C4','D4',
+                    'E4','F#4','G4','G#4','A4','B4','C5','D5','E5'];
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function emptyDrums(){
@@ -2157,8 +2145,8 @@ function abendsonne(){
     drums:{ kick:PULS2, snare:RAHMEN, hatc:RASSEL },
     bass:[[0,'A1'],[6,'A1'],[8,'G1'],[14,'A1']],
     layers:[
-      {inst:'stimme_aa', set:{vol:-3, verb:64, tone:66, att:5, rel:68},
-       notes:[[0,'A5'],[1,'G5'],[2,'E5'],[3,'G5'],[4,'E5'],[5,'D5'],[6,'C5'],[7,'A4']]},
+      {inst:'stimme_aa', set:{vol:-3, verb:64, tone:66, oct:1, att:5, rel:68},
+       notes:[[0,'A4'],[1,'G4'],[2,'E4'],[3,'G4'],[4,'E4'],[5,'D4'],[6,'C4'],[7,'A3']]},
       {inst:'floete', set:{vol:-9, verb:70, tone:62, att:12, rel:74},
        notes:[[9,'D5'],[10,'C5'],[12,'A4'],[14,'G4'],[15,'A4']]},
       {inst:'gitarre', set:{vol:-12, verb:52, tone:56, att:5, rel:66},
@@ -2183,8 +2171,8 @@ function abendsonne(){
     layers:[
       {inst:'frauenchor', set:{vol:-5, verb:68, tone:60, att:12, rel:76},
        notes:[[0,'A4'],[2,'C5'],[4,'D5'],[6,'C5']]},
-      {inst:'stimme_aa', set:{vol:-6, verb:62, tone:64, att:6, rel:70},
-       notes:[[8,'E5'],[9,'G5'],[10,'E5'],[12,'D5'],[14,'C5'],[15,'A4']]},
+      {inst:'stimme_aa', set:{vol:-6, verb:62, tone:64, oct:1, att:6, rel:70},
+       notes:[[8,'E4'],[9,'G4'],[10,'E4'],[12,'D4'],[14,'C4'],[15,'A3']]},
       {inst:'gitarre', set:{vol:-6, verb:48, tone:60, att:4, rel:64}, notes:GIT},
       {inst:'cello', set:{vol:-13, verb:52, tone:44, oct:-1, att:16, rel:74},
        notes:[[0,'A3'],[8,'F3']]}
@@ -2681,64 +2669,6 @@ function buildRoll(containerId, scale, cellClass){
 buildRoll('bassRoll', BASS_SCALE, 'basscell');
 buildRoll('melRoll',  MEL_SCALE,  'melcell');
 
-/* Sichtbares Fenster statt Scrollen: neun Reihen, mit Oktavsprung. */
-const MEL_WIN = 9;
-const MEL_TOP = [...MEL_SCALE].reverse();      // hoechster Ton zuerst
-let melTop = 0;                                 // Index der obersten sichtbaren Reihe
-
-function applyMelWindow(){
-  const rows = rollRows['melRoll'] || [];
-  const max = Math.max(0, rows.length - MEL_WIN);
-  melTop = Math.max(0, Math.min(melTop, max));
-  rows.forEach((r,i)=> r.classList.toggle('aus', i < melTop || i >= melTop + MEL_WIN));
-
-  const oben = MEL_TOP[melTop], unten = MEL_TOP[Math.min(melTop+MEL_WIN-1, rows.length-1)];
-  const b = document.getElementById('melBereich');
-  if(b) b.textContent = unten + ' – ' + oben;
-
-  /* Hinweis auf gesetzte Toene ausserhalb des Fensters */
-  const L = editLayer();
-  let drueber = 0, drunter = 0;
-  if(L){
-    L.mel.forEach(n=>{
-      if(!n) return;
-      const i = MEL_TOP.indexOf(n);
-      if(i < 0) return;
-      if(i < melTop) drueber++;
-      else if(i >= melTop + MEL_WIN) drunter++;
-    });
-  }
-  const a = document.getElementById('melAussen');
-  if(a){
-    const teile = [];
-    if(drueber) teile.push(drueber + ' ▲');
-    if(drunter) teile.push(drunter + ' ▼');
-    a.textContent = teile.length ? teile.join('  ') + ' außerhalb' : 'alle Töne sichtbar';
-    a.classList.toggle('leer', !teile.length);
-  }
-  document.getElementById('melUp').disabled = (melTop === 0);
-  document.getElementById('melDown').disabled = (melTop >= max);
-}
-
-/* Fenster auf die Toene der Ebene ausrichten */
-function centerMelWindow(){
-  const L = editLayer();
-  const rows = rollRows['melRoll'] || [];
-  const max = Math.max(0, rows.length - MEL_WIN);
-  const idx = [];
-  if(L) L.mel.forEach(n=>{ if(n){ const i=MEL_TOP.indexOf(n); if(i>=0) idx.push(i); } });
-  if(idx.length){
-    const mitte = Math.round((Math.min(...idx) + Math.max(...idx)) / 2);
-    melTop = Math.max(0, Math.min(mitte - Math.floor(MEL_WIN/2), max));
-  } else {
-    melTop = Math.max(0, Math.min(8, max));     // Standard: mittlere Lage
-  }
-  applyMelWindow();
-}
-
-document.getElementById('melUp').addEventListener('click', ()=>{ melTop -= 3; applyMelWindow(); });
-document.getElementById('melDown').addEventListener('click', ()=>{ melTop += 3; applyMelWindow(); });
-
 document.querySelectorAll('.basscell').forEach(c=>{
   c.addEventListener('click', ()=>{
     const sc=editScene(), s=Number(c.dataset.step);
@@ -2751,70 +2681,12 @@ document.querySelectorAll('.melcell').forEach(c=>{
     const L=editLayer(); if(!L) return;
     const s=Number(c.dataset.step);
     L.mel[s]=(L.mel[s]===c.dataset.note)?null:c.dataset.note;
-    markDirty(); refreshRolls(); applyMelWindow();
+    markDirty(); refreshRolls();
   });
 });
 function refreshRolls(){
   const sc=editScene();
-  /* Sichtbares Fenster statt Scrollen: neun Reihen, mit Oktavsprung. */
-const MEL_WIN = 9;
-const MEL_TOP = [...MEL_SCALE].reverse();      // hoechster Ton zuerst
-let melTop = 0;                                 // Index der obersten sichtbaren Reihe
-
-function applyMelWindow(){
-  const rows = rollRows['melRoll'] || [];
-  const max = Math.max(0, rows.length - MEL_WIN);
-  melTop = Math.max(0, Math.min(melTop, max));
-  rows.forEach((r,i)=> r.classList.toggle('aus', i < melTop || i >= melTop + MEL_WIN));
-
-  const oben = MEL_TOP[melTop], unten = MEL_TOP[Math.min(melTop+MEL_WIN-1, rows.length-1)];
-  const b = document.getElementById('melBereich');
-  if(b) b.textContent = unten + ' – ' + oben;
-
-  /* Hinweis auf gesetzte Toene ausserhalb des Fensters */
-  const L = editLayer();
-  let drueber = 0, drunter = 0;
-  if(L){
-    L.mel.forEach(n=>{
-      if(!n) return;
-      const i = MEL_TOP.indexOf(n);
-      if(i < 0) return;
-      if(i < melTop) drueber++;
-      else if(i >= melTop + MEL_WIN) drunter++;
-    });
-  }
-  const a = document.getElementById('melAussen');
-  if(a){
-    const teile = [];
-    if(drueber) teile.push(drueber + ' ▲');
-    if(drunter) teile.push(drunter + ' ▼');
-    a.textContent = teile.length ? teile.join('  ') + ' außerhalb' : 'alle Töne sichtbar';
-    a.classList.toggle('leer', !teile.length);
-  }
-  document.getElementById('melUp').disabled = (melTop === 0);
-  document.getElementById('melDown').disabled = (melTop >= max);
-}
-
-/* Fenster auf die Toene der Ebene ausrichten */
-function centerMelWindow(){
-  const L = editLayer();
-  const rows = rollRows['melRoll'] || [];
-  const max = Math.max(0, rows.length - MEL_WIN);
-  const idx = [];
-  if(L) L.mel.forEach(n=>{ if(n){ const i=MEL_TOP.indexOf(n); if(i>=0) idx.push(i); } });
-  if(idx.length){
-    const mitte = Math.round((Math.min(...idx) + Math.max(...idx)) / 2);
-    melTop = Math.max(0, Math.min(mitte - Math.floor(MEL_WIN/2), max));
-  } else {
-    melTop = Math.max(0, Math.min(8, max));     // Standard: mittlere Lage
-  }
-  applyMelWindow();
-}
-
-document.getElementById('melUp').addEventListener('click', ()=>{ melTop -= 3; applyMelWindow(); });
-document.getElementById('melDown').addEventListener('click', ()=>{ melTop += 3; applyMelWindow(); });
-
-document.querySelectorAll('.basscell').forEach(c=>{
+  document.querySelectorAll('.basscell').forEach(c=>{
     const on = sc.bass[Number(c.dataset.step)]===c.dataset.note;
     c.style.color = '#4ee6ff';
     c.style.background = on ? '#4ee6ff' : '';
@@ -2882,7 +2754,6 @@ function refreshMelodyUI(){
   MEL_SLIDERS.forEach(sl=>{ document.getElementById(sl.id).value = L.settings[sl.key]; });
   document.getElementById('melOctVal').textContent = L.settings.oct;
   renderLayerChips(); refreshRolls(); updateLoadHint();
-  centerMelWindow();
   applyLayerSettings(L, true);
 }
 
@@ -2991,7 +2862,7 @@ function updatePlayheads(){
 /* ==========================================================
    KEYBOARD
    ========================================================== */
-const KEYS=['E3','G3','A3','C4','D4','E4','G4','A4','C5','D5','E5','G5'];
+const KEYS=['E3','G3','A3','B3','C4','D4','E4','G4','A4','B4','C5','E5'];
 const kbEl=document.getElementById('keyboard');
 KEYS.forEach(n=>{
   const b=document.createElement('button');
