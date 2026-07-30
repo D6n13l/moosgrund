@@ -504,11 +504,14 @@
     box-shadow .1s, background .1s;}
 
   /* ---------- piano roll ---------- */
-  .roll{border:none;border-radius:0;background:transparent;
-    max-height:46vh;overflow-y:auto;overflow-x:hidden;
-    -webkit-overflow-scrolling:touch;scrollbar-width:thin;padding-right:2px;}
-  .roll::-webkit-scrollbar{width:4px;}
-  .roll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.18);border-radius:4px;}
+  .roll{border:none;border-radius:0;background:transparent;overflow:visible;}
+  .roll-row.aus{display:none;}
+  .rollbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .rollbar .bereich{font-family:'IBM Plex Mono',monospace;font-size:0.66rem;
+    letter-spacing:0.06em;color:var(--ink-soft);min-width:78px;}
+  .rollbar .mini{padding:7px 13px;font-size:0.72rem;}
+  .rollbar .aussen{font-size:0.66rem;color:var(--led-amber);}
+  .rollbar .aussen.leer{color:var(--ink-faint);opacity:0.5;}
   .roll-row{display:grid;grid-template-columns:52px repeat(16,1fr);gap:3px;
     align-items:center;margin-bottom:3px;}
   .roll-note{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--ink-faint);
@@ -1001,6 +1004,12 @@
         <span>Elektronisch <input type="range" id="melElec" min="0" max="100" value="0"></span>
       </div>
 
+      <div class="rollbar">
+        <button id="melUp" class="mini">▲</button>
+        <button id="melDown" class="mini">▼</button>
+        <span class="bereich" id="melBereich">–</span>
+        <span class="aussen" id="melAussen"></span>
+      </div>
       <div class="roll" id="melRoll"></div>
       <div class="sectionlabel">Frei dazuspielen</div>
       <div class="keys" id="keyboard"></div>
@@ -2649,10 +2658,14 @@ function refreshDrums(){
 /* ==========================================================
    PIANO ROLLS
    ========================================================== */
+const rollRows = {};
 function buildRoll(containerId, scale, cellClass){
   const el=document.getElementById(containerId);
-  [...scale].reverse().forEach(note=>{
+  rollRows[containerId] = [];
+  [...scale].reverse().forEach((note,ri)=>{
     const row=document.createElement('div'); row.className='roll-row';
+    row.dataset.ri = ri;
+    rollRows[containerId].push(row);
     const nameEl=document.createElement('div');
     nameEl.className='roll-note'+(note[0]==='E'?' root':'');
     nameEl.textContent=note; row.appendChild(nameEl);
@@ -2668,6 +2681,64 @@ function buildRoll(containerId, scale, cellClass){
 buildRoll('bassRoll', BASS_SCALE, 'basscell');
 buildRoll('melRoll',  MEL_SCALE,  'melcell');
 
+/* Sichtbares Fenster statt Scrollen: neun Reihen, mit Oktavsprung. */
+const MEL_WIN = 9;
+const MEL_TOP = [...MEL_SCALE].reverse();      // hoechster Ton zuerst
+let melTop = 0;                                 // Index der obersten sichtbaren Reihe
+
+function applyMelWindow(){
+  const rows = rollRows['melRoll'] || [];
+  const max = Math.max(0, rows.length - MEL_WIN);
+  melTop = Math.max(0, Math.min(melTop, max));
+  rows.forEach((r,i)=> r.classList.toggle('aus', i < melTop || i >= melTop + MEL_WIN));
+
+  const oben = MEL_TOP[melTop], unten = MEL_TOP[Math.min(melTop+MEL_WIN-1, rows.length-1)];
+  const b = document.getElementById('melBereich');
+  if(b) b.textContent = unten + ' – ' + oben;
+
+  /* Hinweis auf gesetzte Toene ausserhalb des Fensters */
+  const L = editLayer();
+  let drueber = 0, drunter = 0;
+  if(L){
+    L.mel.forEach(n=>{
+      if(!n) return;
+      const i = MEL_TOP.indexOf(n);
+      if(i < 0) return;
+      if(i < melTop) drueber++;
+      else if(i >= melTop + MEL_WIN) drunter++;
+    });
+  }
+  const a = document.getElementById('melAussen');
+  if(a){
+    const teile = [];
+    if(drueber) teile.push(drueber + ' ▲');
+    if(drunter) teile.push(drunter + ' ▼');
+    a.textContent = teile.length ? teile.join('  ') + ' außerhalb' : 'alle Töne sichtbar';
+    a.classList.toggle('leer', !teile.length);
+  }
+  document.getElementById('melUp').disabled = (melTop === 0);
+  document.getElementById('melDown').disabled = (melTop >= max);
+}
+
+/* Fenster auf die Toene der Ebene ausrichten */
+function centerMelWindow(){
+  const L = editLayer();
+  const rows = rollRows['melRoll'] || [];
+  const max = Math.max(0, rows.length - MEL_WIN);
+  const idx = [];
+  if(L) L.mel.forEach(n=>{ if(n){ const i=MEL_TOP.indexOf(n); if(i>=0) idx.push(i); } });
+  if(idx.length){
+    const mitte = Math.round((Math.min(...idx) + Math.max(...idx)) / 2);
+    melTop = Math.max(0, Math.min(mitte - Math.floor(MEL_WIN/2), max));
+  } else {
+    melTop = Math.max(0, Math.min(8, max));     // Standard: mittlere Lage
+  }
+  applyMelWindow();
+}
+
+document.getElementById('melUp').addEventListener('click', ()=>{ melTop -= 3; applyMelWindow(); });
+document.getElementById('melDown').addEventListener('click', ()=>{ melTop += 3; applyMelWindow(); });
+
 document.querySelectorAll('.basscell').forEach(c=>{
   c.addEventListener('click', ()=>{
     const sc=editScene(), s=Number(c.dataset.step);
@@ -2680,12 +2751,70 @@ document.querySelectorAll('.melcell').forEach(c=>{
     const L=editLayer(); if(!L) return;
     const s=Number(c.dataset.step);
     L.mel[s]=(L.mel[s]===c.dataset.note)?null:c.dataset.note;
-    markDirty(); refreshRolls();
+    markDirty(); refreshRolls(); applyMelWindow();
   });
 });
 function refreshRolls(){
   const sc=editScene();
-  document.querySelectorAll('.basscell').forEach(c=>{
+  /* Sichtbares Fenster statt Scrollen: neun Reihen, mit Oktavsprung. */
+const MEL_WIN = 9;
+const MEL_TOP = [...MEL_SCALE].reverse();      // hoechster Ton zuerst
+let melTop = 0;                                 // Index der obersten sichtbaren Reihe
+
+function applyMelWindow(){
+  const rows = rollRows['melRoll'] || [];
+  const max = Math.max(0, rows.length - MEL_WIN);
+  melTop = Math.max(0, Math.min(melTop, max));
+  rows.forEach((r,i)=> r.classList.toggle('aus', i < melTop || i >= melTop + MEL_WIN));
+
+  const oben = MEL_TOP[melTop], unten = MEL_TOP[Math.min(melTop+MEL_WIN-1, rows.length-1)];
+  const b = document.getElementById('melBereich');
+  if(b) b.textContent = unten + ' – ' + oben;
+
+  /* Hinweis auf gesetzte Toene ausserhalb des Fensters */
+  const L = editLayer();
+  let drueber = 0, drunter = 0;
+  if(L){
+    L.mel.forEach(n=>{
+      if(!n) return;
+      const i = MEL_TOP.indexOf(n);
+      if(i < 0) return;
+      if(i < melTop) drueber++;
+      else if(i >= melTop + MEL_WIN) drunter++;
+    });
+  }
+  const a = document.getElementById('melAussen');
+  if(a){
+    const teile = [];
+    if(drueber) teile.push(drueber + ' ▲');
+    if(drunter) teile.push(drunter + ' ▼');
+    a.textContent = teile.length ? teile.join('  ') + ' außerhalb' : 'alle Töne sichtbar';
+    a.classList.toggle('leer', !teile.length);
+  }
+  document.getElementById('melUp').disabled = (melTop === 0);
+  document.getElementById('melDown').disabled = (melTop >= max);
+}
+
+/* Fenster auf die Toene der Ebene ausrichten */
+function centerMelWindow(){
+  const L = editLayer();
+  const rows = rollRows['melRoll'] || [];
+  const max = Math.max(0, rows.length - MEL_WIN);
+  const idx = [];
+  if(L) L.mel.forEach(n=>{ if(n){ const i=MEL_TOP.indexOf(n); if(i>=0) idx.push(i); } });
+  if(idx.length){
+    const mitte = Math.round((Math.min(...idx) + Math.max(...idx)) / 2);
+    melTop = Math.max(0, Math.min(mitte - Math.floor(MEL_WIN/2), max));
+  } else {
+    melTop = Math.max(0, Math.min(8, max));     // Standard: mittlere Lage
+  }
+  applyMelWindow();
+}
+
+document.getElementById('melUp').addEventListener('click', ()=>{ melTop -= 3; applyMelWindow(); });
+document.getElementById('melDown').addEventListener('click', ()=>{ melTop += 3; applyMelWindow(); });
+
+document.querySelectorAll('.basscell').forEach(c=>{
     const on = sc.bass[Number(c.dataset.step)]===c.dataset.note;
     c.style.color = '#4ee6ff';
     c.style.background = on ? '#4ee6ff' : '';
@@ -2753,6 +2882,7 @@ function refreshMelodyUI(){
   MEL_SLIDERS.forEach(sl=>{ document.getElementById(sl.id).value = L.settings[sl.key]; });
   document.getElementById('melOctVal').textContent = L.settings.oct;
   renderLayerChips(); refreshRolls(); updateLoadHint();
+  centerMelWindow();
   applyLayerSettings(L, true);
 }
 
