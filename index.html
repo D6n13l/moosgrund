@@ -532,8 +532,11 @@
 
   /* ---------- arrangement ---------- */
   .arr-list{display:flex;flex-direction:column;gap:7px;}
-  .arr-block{display:flex;align-items:center;gap:9px;padding:9px 11px;
+  .arr-block{display:flex;flex-direction:column;gap:7px;padding:9px 11px;
     border:1px solid var(--edge-soft);border-radius:10px;background:transparent;}
+  .arr-kopf{display:flex;align-items:center;gap:9px;width:100%;}
+  .arr-bild{width:100%;}
+  .arr-bild .mp{width:100%;height:26px;display:block;opacity:0.9;}
   .arr-block.sounding{border-color:var(--honey);box-shadow:0 0 0 1px rgba(176,138,60,0.4);}
   .arr-block select{padding:5px 7px;font-size:0.73rem;}
   .arr-block .mini{padding:6px 9px;font-size:0.71rem;border-radius:8px;}
@@ -2353,10 +2356,25 @@ document.querySelectorAll('.tab').forEach(btn=>{
    getrennte Klangketten behalten. */
 function copyScene(){
   const quelle = editScene();
-  if(!quelle) return;
+  if(!quelle) return null;
+
+  /* Tiefe Kopie ueber alle Felder – auch solche, die spaeter dazugekommen sind. */
   const k = JSON.parse(JSON.stringify(quelle));
   k.id = 's'+uid();
   (k.layers||[]).forEach(L=>{ L.id = 'L'+uid(); });
+
+  /* Sicherheitsnetz: fehlt ein Feld, aus der Quelle nachziehen. */
+  Object.keys(quelle).forEach(feld=>{
+    if(feld === 'id' || feld === 'layers') return;
+    if(k[feld] === undefined) k[feld] = JSON.parse(JSON.stringify(quelle[feld]));
+  });
+  (quelle.layers||[]).forEach((L,i)=>{
+    if(!k.layers[i]) return;
+    Object.keys(L).forEach(feld=>{
+      if(feld === 'id') return;
+      if(k.layers[i][feld] === undefined) k.layers[i][feld] = JSON.parse(JSON.stringify(L[feld]));
+    });
+  });
 
   const basis = quelle.name.replace(/ Kopie( \(\d+\))?$/, '');
   let name = basis + ' Kopie', n = 2;
@@ -2369,6 +2387,35 @@ function copyScene(){
   markDirty();
   refreshAllEditors();
   renderArrangement();
+  return k;
+}
+
+function deleteScene(){
+  const sc = editScene();
+  if(!sc) return false;
+  if(song.scenes.length <= 1){
+    alert('Die letzte Szene lässt sich nicht entfernen.');
+    return false;
+  }
+  const inSet = song.arrangement.filter(b=>b.sceneId===sc.id).length;
+  const frage = inSet
+    ? 'Szene „' + sc.name + '" entfernen? Sie steht ' + inSet +
+      (inSet===1 ? ' Mal' : ' Mal') + ' im Set und wird dort mitentfernt.'
+    : 'Szene „' + sc.name + '" entfernen?';
+  if(!confirm(frage)) return false;
+
+  if(isPlaying) stopPlayback();
+  (sc.layers||[]).forEach(L=>disposeChain(L.id));
+  song.arrangement = song.arrangement.filter(b=>b.sceneId!==sc.id);
+  const i = song.scenes.indexOf(sc);
+  song.scenes.splice(i,1);
+  const naechste = song.scenes[Math.min(i, song.scenes.length-1)];
+  editSceneId = naechste.id;
+  editLayerId = (naechste.layers && naechste.layers[0]) ? naechste.layers[0].id : null;
+  markDirty();
+  refreshAllEditors();
+  renderArrangement();
+  return true;
 }
 
 function renderSceneChips(){
@@ -2402,6 +2449,12 @@ function renderSceneChips(){
     kopie.title='Aktuelle Szene verdoppeln';
     kopie.addEventListener('click', ()=>{ copyScene(); });
     el.appendChild(kopie);
+
+    const weg=document.createElement('button');
+    weg.className='scene-chip'; weg.textContent='✕ Entfernen';
+    weg.title='Aktuelle Szene entfernen';
+    weg.addEventListener('click', ()=>{ deleteScene(); });
+    el.appendChild(weg);
   });
 }
 /* lightweight per-tick highlight — no rebuild, no listener churn */
@@ -3010,6 +3063,31 @@ KEYS.forEach(n=>{
 const BAR_OPTIONS=[1,2,3,4,6,8,12,16,24,32,48,64];
 const SEG_COLORS=['#7fd44a','#3fc9d6','#ffab2e','#e0559b','#9b7ade','#5d7c4a'];
 
+/* Musterbild einer Szene: fuenf Spuren ueber 16 Schritte, so wie sie im Raster stehen. */
+function szenenBild(sc){
+  if(!sc) return '';
+  const spuren = [
+    {farbe:'#7fd44a', an:i=>!!sc.drums.kick[i]},
+    {farbe:'#e0559b', an:i=>!!sc.drums.snare[i]},
+    {farbe:'#ffab2e', an:i=>!!(sc.drums.hatc[i] || sc.drums.hato[i])},
+    {farbe:'#4ee6ff', an:i=>!!sc.bass[i]},
+    {farbe:'#a97bff', an:i=>(sc.layers||[]).some(L=>!!L.mel[i])},
+    {farbe:'#ff6b6b', an:i=>!!(sc.voice && sc.voice[i])}
+  ];
+  let r = '';
+  spuren.forEach((sp,z)=>{
+    for(let i=0;i<STEPS;i++){
+      if(!sp.an(i)) continue;
+      r += '<rect x="'+(i*1.06)+'" y="'+(z*1.15)+'" width="0.8" height="0.72" rx="0.36" fill="'+sp.farbe+'"/>';
+    }
+  });
+  // Taktzaehlzeiten als schwache Striche
+  for(let i=0;i<STEPS;i+=4){
+    r += '<rect x="'+(i*1.06)+'" y="0" width="0.06" height="6.9" fill="rgba(255,255,255,0.18)"/>';
+  }
+  return '<svg class="mp" viewBox="0 0 17 6.9" preserveAspectRatio="none">'+r+'</svg>';
+}
+
 function renderArrangement(){
   const list=document.getElementById('arrList'); list.innerHTML='';
   let running = 0;
@@ -3019,6 +3097,8 @@ function renderArrangement(){
     row.className='arr-block'; row.dataset.idx=i;
     const prog=document.createElement('div'); prog.className='arr-prog';
     row.appendChild(prog);
+    const kopf=document.createElement('div'); kopf.className='arr-kopf';
+    row.appendChild(kopf);
     row.addEventListener('click', ev=>{
       if(ev.target.closest('select,button')) return;
       const bars = totalBars();
@@ -3033,7 +3113,7 @@ function renderArrangement(){
       sel.appendChild(o);
     });
     sel.addEventListener('change', ()=>{ blk.sceneId=sel.value; markDirty(); renderArrangement(); });
-    row.appendChild(sel);
+    kopf.appendChild(sel);
 
     const barSel=document.createElement('select');
     BAR_OPTIONS.forEach(v=>{
@@ -3043,18 +3123,23 @@ function renderArrangement(){
       barSel.appendChild(o);
     });
     barSel.addEventListener('change', ()=>{ blk.bars=Number(barSel.value); markDirty(); renderArrangement(); });
-    row.appendChild(barSel);
+    kopf.appendChild(barSel);
 
     const time=document.createElement('div');
     time.className='arr-time'; time.textContent=fmt(blockSeconds(blk));
-    row.appendChild(time);
+    kopf.appendChild(time);
 
-    const sp=document.createElement('div'); sp.className='arr-spacer'; row.appendChild(sp);
+    const sp=document.createElement('div'); sp.className='arr-spacer'; kopf.appendChild(sp);
 
     const del=document.createElement('button');
     del.className='mini'; del.textContent='✕';
     del.addEventListener('click', ()=>{ song.arrangement.splice(i,1); markDirty(); renderArrangement(); });
-    row.appendChild(del);
+    kopf.appendChild(del);
+
+    const bild=document.createElement('div');
+    bild.className='arr-bild';
+    bild.innerHTML = szenenBild(sceneById(blk.sceneId));
+    row.appendChild(bild);
 
     list.appendChild(row);
   });
