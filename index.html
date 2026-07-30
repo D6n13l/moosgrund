@@ -337,6 +337,15 @@
   .take-item .nm{flex:1;font-size:0.78rem;}
   .take-item .meta{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--ink-faint);}
   .take-item .mini{padding:6px 9px;font-size:0.62rem;flex-shrink:0;}
+  .pos{font-family:'IBM Plex Mono',monospace;font-size:0.63rem;letter-spacing:0.04em;
+    color:var(--ink-soft);white-space:nowrap;}
+  .pos b{color:var(--led-amber);font-weight:700;
+    text-shadow:0 0 7px rgba(255,176,58,0.5);}
+  .pos .sep{opacity:0.35;margin:0 5px;}
+  .arr-block{position:relative;overflow:hidden;}
+  .arr-prog{position:absolute;left:0;top:0;bottom:0;width:0;
+    background:linear-gradient(90deg,rgba(255,176,58,0.16),rgba(255,176,58,0.05));
+    border-right:1px solid rgba(255,176,58,0.7);pointer-events:none;transition:width .06s linear;}
   .loadhint{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--ink-faint);
     flex-basis:100%;}
   .instrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px;}
@@ -793,6 +802,7 @@
     <div class="transport">
       <button id="playBtn" class="primary">Start</button>
       <div class="ctl"><span id="audioDot"></span><span id="modeLabel">Szene</span></div>
+      <div class="ctl pos" id="posReadout">–</div>
       <div class="ctl"><span>Tempo</span><input type="range" id="tempo" min="140" max="185" value="172"><span id="tempoVal">172</span></div>
       <div class="ctl"><span>Master</span><input type="range" id="master" min="-30" max="0" value="-6"></div>
     </div>
@@ -1605,7 +1615,7 @@ Tone.Transport.scheduleRepeat((time)=>{
   Tone.Draw.schedule(()=>{
     currentStep = step; soundingSceneId = scene.id;
     updatePlayheads(); updateTimelineCursor(localTick);
-    if(blockIdx>=0) highlightBlock(blockIdx);
+    updatePosition(localTick);          /* setzt auch die Abschnitts-Markierung */
     updateSceneChipHighlight();
   }, time);
 
@@ -1618,6 +1628,7 @@ function stopPlayback(){
   const b=document.getElementById('playBtn');
   b.textContent='Start'; b.classList.remove('playing');
   updatePlayheads(); updateSceneChipHighlight(); highlightBlock(-1);
+  updatePosition(0);
   document.getElementById('tlCursor').style.left='0';
 }
 document.getElementById('playBtn').addEventListener('click', async ()=>{
@@ -1989,6 +2000,8 @@ function renderArrangement(){
   song.arrangement.forEach((blk,i)=>{
     const row=document.createElement('div');
     row.className='arr-block'; row.dataset.idx=i;
+    const prog=document.createElement('div'); prog.className='arr-prog';
+    row.appendChild(prog);
 
     const sel=document.createElement('select');
     song.scenes.forEach(s=>{
@@ -2053,10 +2066,52 @@ function updateTimelineCursor(t){
   const bars=totalBars(); if(!bars) return;
   document.getElementById('tlCursor').style.left = Math.min(100,(t/STEPS)/bars*100)+'%';
 }
-function highlightBlock(idx){
+function highlightBlock(idx, pct){
   document.querySelectorAll('.arr-block').forEach(el=>{
-    el.classList.toggle('sounding', Number(el.dataset.idx)===idx);
+    const on = Number(el.dataset.idx)===idx;
+    el.classList.toggle('sounding', on);
+    const p = el.querySelector('.arr-prog');
+    if(p) p.style.width = on ? Math.max(0,Math.min(100,pct||0))+'%' : '0';
   });
+}
+
+/* Wo bin ich gerade? Szene, Takt im Abschnitt, verstrichene Zeit */
+function updatePosition(t){
+  const el = document.getElementById('posReadout');
+  if(!el) return;
+  if(!isPlaying){ el.innerHTML='–'; highlightBlock(-1); return; }
+
+  const bar  = Math.floor(t / STEPS);
+  const beat = Math.floor((t % STEPS) / 4) + 1;
+
+  if(playMode !== 'set'){
+    const sc = editScene();
+    el.innerHTML = '<b>' + (sc ? sc.name : '') + '</b><span class="sep">·</span>Zählzeit ' + beat;
+    return;
+  }
+
+  let acc = 0, idx = -1, blk = null;
+  for(let i=0;i<song.arrangement.length;i++){
+    const b = song.arrangement[i];
+    if(bar < acc + b.bars){ idx = i; blk = b; break; }
+    acc += b.bars;
+  }
+  if(!blk){ el.innerHTML='Ende'; return; }
+
+  const barInBlock = bar - acc + 1;
+  const sc = sceneById(blk.sceneId);
+  const bs = barSeconds();
+  const elapsed = (t / STEPS) * bs;
+  const total   = totalBars() * bs;
+  const pct     = ((bar - acc) + (t % STEPS)/STEPS) / blk.bars * 100;
+
+  el.innerHTML =
+    'Abschnitt ' + (idx+1) + '/' + song.arrangement.length +
+    '<span class="sep">·</span><b>' + (sc ? sc.name : '?') + '</b>' +
+    '<span class="sep">·</span>Takt ' + barInBlock + '/' + blk.bars +
+    '<span class="sep">·</span>' + fmt(elapsed) + ' / ' + fmt(total);
+
+  highlightBlock(idx, pct);
 }
 document.getElementById('addBlockBtn').addEventListener('click', ()=>{
   song.arrangement.push({sceneId:editSceneId, bars:16}); markDirty(); renderArrangement();
