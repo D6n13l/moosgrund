@@ -2832,6 +2832,59 @@ function refreshRolls(){
   });
 }
 
+let editLayerId = null;
+function editLayer(){
+  const sc = editScene();
+  if(!sc || !sc.layers || !sc.layers.length) return null;
+  return sc.layers.find(L=>L.id===editLayerId) || sc.layers[0];
+}
+function renderLayerChips(){
+  const el = document.getElementById('layerChips');
+  if(!el || !song) return;
+  const sc = editScene();
+  const active = editLayer();
+  el.innerHTML='';
+  sc.layers.forEach((L,i)=>{
+    const b=document.createElement('button');
+    b.className='layer-chip'+(active&&L.id===active.id?' active':'')+(L.mute?' muted':'');
+    const num=document.createElement('span'); num.className='lnum'; num.textContent=(i+1);
+    b.appendChild(num);
+    b.appendChild(document.createTextNode((INSTRUMENTS[L.instrument]||{}).label || L.instrument));
+    b.addEventListener('click', ()=>{ editLayerId=L.id; refreshMelodyUI(); });
+    b.addEventListener('dblclick', ()=>{
+      L.mute = !L.mute; applyLayerSettings(L, true); markDirty(); renderLayerChips();
+    });
+    el.appendChild(b);
+  });
+  const add=document.createElement('button');
+  add.className='layer-chip'; add.textContent='+ Ebene';
+  add.addEventListener('click', ()=>{
+    if(sc.layers.length>=4){ alert('Vier Ebenen pro Szene sind das Maximum.'); return; }
+    const L=newLayer('streicher' in INSTRUMENTS ? 'streicher' : 'violine');
+    sc.layers.push(L); editLayerId=L.id; markDirty(); refreshMelodyUI();
+  });
+  el.appendChild(add);
+  const del=document.createElement('button');
+  del.className='layer-chip'; del.textContent='− Ebene';
+  del.addEventListener('click', ()=>{
+    if(sc.layers.length<=1){ alert('Mindestens eine Ebene muss bleiben.'); return; }
+    const L=editLayer();
+    disposeChain(L.id);
+    sc.layers.splice(sc.layers.indexOf(L),1);
+    editLayerId=sc.layers[0].id; markDirty(); refreshMelodyUI();
+  });
+  el.appendChild(del);
+}
+function refreshMelodyUI(){
+  const L = editLayer();
+  if(!L) return;
+  document.getElementById('melInstrument').value = L.instrument;
+  MEL_SLIDERS.forEach(sl=>{ document.getElementById(sl.id).value = L.settings[sl.key]; });
+  document.getElementById('melOctVal').textContent = L.settings.oct;
+  renderLayerChips(); refreshRolls(); updateLoadHint();
+  applyLayerSettings(L, true);
+}
+
 document.getElementById('melInstrument').addEventListener('change', e=>{
   const sc = editScene();
   sc.instrument = e.target.value;
