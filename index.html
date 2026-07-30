@@ -533,7 +533,7 @@
   .timeline{height:34px;border-radius:8px;overflow:hidden;display:flex;position:relative;
     cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;
     border:1px solid var(--edge-soft);margin:12px 0;background:rgba(255,255,255,0.04);}
-  .tl-seg{height:100%;}
+  .tl-seg{height:100%;min-width:2px;}
   #tlCursor{position:absolute;top:0;bottom:0;width:2px;background:#fff;z-index:2;
     box-shadow:0 0 6px #fff;pointer-events:none;}
   #tlCursor::after{content:'';position:absolute;left:-5px;top:-1px;width:12px;height:7px;
@@ -2848,7 +2848,7 @@ KEYS.forEach(n=>{
 /* ==========================================================
    ARRANGEMENT
    ========================================================== */
-const BAR_OPTIONS=[4,8,16,24,32,48,64];
+const BAR_OPTIONS=[1,2,3,4,6,8,12,16,24,32,48,64];
 const SEG_COLORS=['#7fd44a','#3fc9d6','#ffab2e','#e0559b','#9b7ade','#5d7c4a'];
 
 function renderArrangement(){
@@ -2878,7 +2878,8 @@ function renderArrangement(){
 
     const barSel=document.createElement('select');
     BAR_OPTIONS.forEach(v=>{
-      const o=document.createElement('option'); o.value=v; o.textContent=v+' Takte';
+      const o=document.createElement('option'); o.value=v;
+      o.textContent = v + (v===1 ? ' Takt' : ' Takte');
       if(v===blk.bars) o.selected=true;
       barSel.appendChild(o);
     });
