@@ -1310,8 +1310,8 @@ async function findDrumBase(){
         if(v.def.sample && v.def.sample.src==='berklee' && !v.sampler) attachSampler(v, c);
         if(v.def.register && (!v.brust || !v.brust.sampler)){
           loeseTeilstimme(v.brust); loeseTeilstimme(v.kopf);
-          v.brust = baueTeilstimme(v.def.brust, c);
-          v.kopf  = baueTeilstimme(v.def.kopf,  c);
+          v.brust = baueTeilstimme(v.def.brust, c, v.fx ? v.fx.input : null);
+          v.kopf  = baueTeilstimme(v.def.kopf,  c, v.fx ? v.fx.input : null);
         }
       });
     });
@@ -1514,9 +1514,9 @@ function makeFormant(target, f1, f2){
 
 /* Eine Teilstimme: eigene Aufnahmen mit eigener Formantlage.
    Damit lassen sich Brust- und Kopfregister getrennt ansteuern. */
-function baueTeilstimme(spec, c){
+function baueTeilstimme(spec, c, fxZiel){
   const t = {ready:false, failed:false, sampler:null, fmt:null};
-  let ziel = c.filter;
+  let ziel = fxZiel || c.filter;
   if(spec.formant){
     t.fmt = makeFormant(ziel, spec.formant[0], spec.formant[1]);
     ziel = t.fmt.input;
@@ -1561,6 +1561,10 @@ function makeVoiceFX(def, target){
   if(def.fx && def.fx.trem){
     const tr = new Tone.Tremolo(def.fx.trem).start();
     tr.connect(last); nodes.push(tr); last = tr;
+  }
+  if(def.fx && def.fx.vibrato){
+    const vb = new Tone.Vibrato(def.fx.vibrato);
+    vb.connect(last); nodes.push(vb); last = vb;
   }
   return {input:last, nodes};
 }
@@ -1842,13 +1846,15 @@ const INSTRUMENTS = {
       'A5':'femalevoice_aa_A5.mp3','C6':'femalevoice_aa_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.8, oscillator:{type:'sine'},
       envelope:{attack:0.28, decay:0.3, sustain:0.9, release:1.3}, modulation:{type:'sine'}}},
-  jodel:{label:'Jodelstimme', vol:-8, register:71,
-    brust:{vol:-7, formant:[730,1150], files:{
+  jodel:{label:'Jodelstimme', vol:-8, register:72,
+    fx:{vibrato:{frequency:5.2, depth:0.09, type:'sine'}},
+    brust:{vol:-6, formant:[730,1150], files:{
       'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3',
-      'Eb4':'femalevoice_aa_Eb4.mp3','A4':'femalevoice_aa_A4.mp3'}},
-    kopf:{vol:-11, formant:[420,2700], files:{
-      'A4':'femalevoice_oo_A4.mp3','Db5':'femalevoice_oo_Db5.mp3',
-      'A5':'femalevoice_oo_A5.mp3','C6':'femalevoice_oo_C6.mp3'}},
+      'Eb4':'femalevoice_aa_Eb4.mp3','A4':'femalevoice_aa_A4.mp3',
+      'Db5':'femalevoice_aa_Db5.mp3'}},
+    kopf:{vol:-10, formant:[430,2750], files:{
+      'Db5':'femalevoice_oo_Db5.mp3','A5':'femalevoice_oo_A5.mp3',
+      'C6':'femalevoice_oo_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.5, oscillator:{type:'sine'},
       envelope:{attack:0.02, decay:0.2, sustain:0.8, release:0.3}, modulation:{type:'sine'}}},
   frauenchor:{label:'Frauenchor', vol:-11, sample:{src:'berklee', files:{
@@ -1902,8 +1908,8 @@ function getVoice(layerId, kind){
   v.ziel = ziel;
 
   if(def.register){
-    v.brust = baueTeilstimme(def.brust, c);
-    v.kopf  = baueTeilstimme(def.kopf,  c);
+    v.brust = baueTeilstimme(def.brust, c, v.fx ? v.fx.input : null);
+    v.kopf  = baueTeilstimme(def.kopf,  c, v.fx ? v.fx.input : null);
   }
 
   v.synth = new Tone.PolySynth(def.voice || Tone.Synth, def.opts || {});
@@ -3093,14 +3099,21 @@ document.getElementById('retrySamplesBtn').addEventListener('click', async ()=>{
 document.getElementById('jodelBtn').addEventListener('click', ()=>{
   const L = editLayer();
   if(!L) return;
-  const tief = ['A3','C4','E4','A3','C4','E4','D4','A3'];
-  const hoch = ['A4','E5','A4','C5','E5','A4','C5','A4'];
+  /* Lange Bruststimme, kurzer Umschlag nach oben, gehaltener Kopfton –
+     so ist ein Juuzli gebaut: getragen, nicht gehackt. */
+  const figur = [
+    [0,  'A3', 3],   // getragener Brustton
+    [3,  'E4', 1],   // Anlauf
+    [4,  'C5', 3],   // Umschlag nach oben, gehalten
+    [7,  'A3', 1],   // Sprung zurueck
+    [8,  'E4', 2],
+    [10, 'E5', 3],   // hoher Ruf, gehalten
+    [13, 'C5', 1],
+    [14, 'A3', 2]    // Abschluss unten
+  ];
   L.mel = new Array(STEPS).fill(null);
   L.melLen = new Array(STEPS).fill(1);
-  for(let p=0; p<8; p++){
-    L.mel[p*2]   = tief[p];       // Brustregister auf der Zaehlzeit
-    L.mel[p*2+1] = hoch[p];       // Kopfregister auf dem Achtel danach
-  }
+  figur.forEach(([i,n,l])=>{ L.mel[i]=n; L.melLen[i]=l; });
   if(INSTRUMENTS.jodel) L.instrument = 'jodel';
   getVoice(L.id, L.instrument);
   markDirty();
