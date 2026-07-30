@@ -945,6 +945,8 @@
           <optgroup label="Stimmen">
             <option value="stimme_aa">Frauenstimme Ah</option>
             <option value="stimme_oo">Frauenstimme Oh</option>
+            <option value="stimme_uh">Frauenstimme Uh</option>
+            <option value="stimme_ih">Frauenstimme Ih</option>
             <option value="frauenchor">Frauenchor</option>
             <option value="kinderchor">Kinderchor</option>
           </optgroup>
@@ -1000,6 +1002,17 @@
       <div class="trimrow">
         <span>Start <input type="range" id="trimStart" min="0" max="100" value="0"></span>
         <span>Ende <input type="range" id="trimEnd" min="0" max="100" value="100"></span>
+      </div>
+      <div class="trimrow">
+        <span>Verwandeln
+          <select id="stimmPreset">
+            <option value="aus">unverändert</option>
+            <option value="weich">etwas heller</option>
+            <option value="weiblich">weiblich</option>
+            <option value="hell">sehr hell</option>
+            <option value="tief">tiefer</option>
+          </select>
+        </span>
       </div>
       <div class="trimrow">
         <span>Lautstärke <input type="range" id="vocalGain" min="-24" max="12" value="0"></span>
@@ -1431,12 +1444,28 @@ function disposeChain(layerId){
   Object.values(c.voices).forEach(v=>{
     try{ v.synth.dispose(); }catch(e){}
     if(v.sampler){ try{ v.sampler.dispose(); }catch(e){} }
+    if(v.fmt) v.fmt.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
   });
   if(c.choir) Object.values(c.choir).forEach(n=>{ try{ n.dispose(); }catch(e){} });
   [c.filter,c.blend,c.gain,c.send,c.drive,c.bite,c.chorus,c.out]
     .forEach(n=>{ if(n){ try{ n.dispose(); }catch(e){} } });
   delete layerChains[layerId];
 }
+/* Formantnetz: zwei Resonanzen bestimmen, welcher Vokal zu hoeren ist.
+   Damit lassen sich aus einer Ah- oder Oh-Aufnahme auch Uh und Ih formen. */
+function makeFormant(target, f1, f2){
+  const input = new Tone.Gain(1);
+  const bp1 = new Tone.Filter({type:'bandpass', frequency:f1, Q:4.5});
+  const bp2 = new Tone.Filter({type:'bandpass', frequency:f2, Q:6});
+  const g1  = new Tone.Gain(1.0);
+  const g2  = new Tone.Gain(0.75);
+  const dry = new Tone.Gain(0.22);
+  input.connect(bp1); bp1.connect(g1); g1.connect(target);
+  input.connect(bp2); bp2.connect(g2); g2.connect(target);
+  input.connect(dry); dry.connect(target);
+  return {input, nodes:[input,bp1,bp2,g1,g2,dry]};
+}
+
 /* Vokalformanten fuer den Kinderchor, ebenfalls pro Ebene */
 function getChoirIn(c){
   if(c.choir) return c.choir.input;
@@ -1517,7 +1546,7 @@ function attachSampler(v, chain){
       onerror: ()=>{ v.failed = true; v.sampler = null; updateLoadHint(); }
     });
     v.sampler.volume.value = v.def.vol || -10;
-    v.sampler.connect(v.def.choir ? getChoirIn(c) : c.filter);
+    v.sampler.connect(v.ziel || (v.def.choir ? getChoirIn(c) : c.filter));
   }catch(e){ v.sampler = null; v.failed = true; }
 }
 
@@ -1651,6 +1680,20 @@ const INSTRUMENTS = {
       'A5':'femalevoice_oo_A5.mp3','C6':'femalevoice_oo_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.2, oscillator:{type:'sine'},
       envelope:{attack:0.35, decay:0.3, sustain:0.9, release:1.6}, modulation:{type:'sine'}}},
+  stimme_uh:{label:'Frauenstimme Uh', vol:-7, formant:[325,700],
+    sample:{src:'berklee', files:{
+      'A3':'femalevoice_oo_femalevoice_oo_A3.mp3','Db4':'femalevoice_oo_Db4.mp3',
+      'A4':'femalevoice_oo_A4.mp3','Db5':'femalevoice_oo_Db5.mp3',
+      'A5':'femalevoice_oo_A5.mp3','C6':'femalevoice_oo_C6.mp3'}},
+    voice:Tone.AMSynth, opts:{harmonicity:1.2, oscillator:{type:'sine'},
+      envelope:{attack:0.35, decay:0.3, sustain:0.9, release:1.6}, modulation:{type:'sine'}}},
+  stimme_ih:{label:'Frauenstimme Ih', vol:-6, formant:[350,2800],
+    sample:{src:'berklee', files:{
+      'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3','Eb4':'femalevoice_aa_Eb4.mp3',
+      'A4':'femalevoice_aa_A4.mp3','Db5':'femalevoice_aa_Db5.mp3','F5':'femalevoice_aa_F5.mp3',
+      'A5':'femalevoice_aa_A5.mp3','C6':'femalevoice_aa_C6.mp3'}},
+    voice:Tone.AMSynth, opts:{harmonicity:1.8, oscillator:{type:'sine'},
+      envelope:{attack:0.28, decay:0.3, sustain:0.9, release:1.3}, modulation:{type:'sine'}}},
   frauenchor:{label:'Frauenchor', vol:-11, sample:{src:'berklee', files:{
       'A3':'femalevoices_aa2_A3.mp3','C#4':'femalevoices_aa2_C#4.mp3',
       'A4':'femalevoices_aa2_A4.mp3','C5':'femalevoices_aa2_C5.mp3',
@@ -1688,11 +1731,18 @@ function getVoice(layerId, kind){
   const c = getChain(layerId);
   if(c.voices[kind]) return c.voices[kind];
   const def = INSTRUMENTS[kind] || INSTRUMENTS.piano;
-  const v = {def, kind, chain:c, synth:null, sampler:null, ready:false, failed:false};
+  const v = {def, kind, chain:c, synth:null, sampler:null, ready:false, failed:false, fmt:null};
+
+  let ziel = def.choir ? getChoirIn(c) : c.filter;
+  if(def.formant){
+    v.fmt = makeFormant(ziel, def.formant[0], def.formant[1]);
+    ziel = v.fmt.input;
+  }
+  v.ziel = ziel;
 
   v.synth = new Tone.PolySynth(def.voice || Tone.Synth, def.opts || {});
   v.synth.volume.value = def.vol || -12;
-  v.synth.connect(def.choir ? getChoirIn(c) : c.filter);
+  v.synth.connect(ziel);
 
   c.voices[kind] = v;
   if(def.sample) attachSampler(v, c);
@@ -1981,9 +2031,9 @@ function abendsonne(){
     layers:[
       {inst:'gitarre', set:{vol:-5, verb:58, tone:56, att:5, rel:72}, notes:GIT},
       {inst:'floete', set:{vol:-11, verb:70, tone:60, att:18, rel:80},
-       notes:[[4,'A4'],[12,'C5']]},
-      {inst:'stimme_oo', set:{vol:-14, verb:80, tone:52, att:16, rel:88},
-       notes:[[6,'E4'],[8,'G4'],[10,'A4']]}
+       notes:[[2,'A4'],[5,'C5']]},
+      {inst:'stimme_uh', set:{vol:-13, verb:82, tone:50, att:16, rel:88},
+       notes:[[10,'E4'],[12,'G4'],[14,'A4']]}
     ]});
 
   /* Gesang: absteigende Phrase, Ah und Oh wechseln sich ab */
@@ -1991,31 +2041,32 @@ function abendsonne(){
     drums:{ kick:PULS, hatc:RASSEL },
     bass:[[0,'A1'],[8,'F1']],
     layers:[
-      {inst:'stimme_aa', set:{vol:-4, verb:70, tone:62, att:6, rel:74},
-       notes:[[0,'A4'],[1,'C5'],[2,'D5'],[4,'E5'],[5,'D5'],[6,'C5'],[7,'D5']]},
-      {inst:'stimme_oo', set:{vol:-5, verb:74, tone:56, att:9, rel:82},
-       notes:[[8,'C5'],[9,'A4'],[10,'G4'],[12,'A4'],[13,'C5'],[15,'A4']]},
-      {inst:'gitarre', set:{vol:-11, verb:56, tone:54, att:5, rel:70}, notes:GIT}
+      {inst:'stimme_aa', set:{vol:-4, verb:70, tone:62, att:6, rel:70},
+       notes:[[0,'A4'],[1,'C5'],[2,'D5'],[4,'E5'],[6,'D5'],[7,'C5']]},
+      {inst:'stimme_uh', set:{vol:-6, verb:76, tone:54, att:9, rel:80},
+       notes:[[9,'A4'],[10,'G4'],[12,'A4'],[14,'C5']]},
+      {inst:'gitarre', set:{vol:-12, verb:56, tone:54, att:5, rel:70},
+       notes:[[0,'A3'],[8,'F3']]}
     ]});
 
   const ruf = S('Ruf', {bpm:78,
     drums:{ kick:PULS2, snare:RAHMEN, hatc:RASSEL },
     bass:[[0,'A1'],[6,'A1'],[8,'G1'],[14,'A1']],
     layers:[
-      {inst:'stimme_aa', set:{vol:-3, verb:64, tone:66, att:5, rel:70},
-       notes:[[0,'A5'],[1,'G5'],[2,'E5'],[3,'G5'],[4,'E5'],[6,'D5'],[7,'C5'],
-              [8,'D5'],[10,'C5'],[11,'A4'],[12,'G4'],[14,'A4'],[15,'C5']]},
-      {inst:'floete', set:{vol:-12, verb:66, tone:62, att:14, rel:72},
-       notes:[[8,'E5'],[12,'D5']]},
-      {inst:'gitarre', set:{vol:-10, verb:52, tone:56, att:5, rel:66}, notes:GIT}
+      {inst:'stimme_aa', set:{vol:-3, verb:64, tone:66, att:5, rel:68},
+       notes:[[0,'A5'],[1,'G5'],[2,'E5'],[3,'G5'],[4,'E5'],[5,'D5'],[6,'C5'],[7,'A4']]},
+      {inst:'floete', set:{vol:-9, verb:70, tone:62, att:12, rel:74},
+       notes:[[9,'D5'],[10,'C5'],[12,'A4'],[14,'G4'],[15,'A4']]},
+      {inst:'gitarre', set:{vol:-12, verb:52, tone:56, att:5, rel:66},
+       notes:[[0,'A3'],[8,'G3']]}
     ]});
 
   const stille = S('Stille', {bpm:72,
     drums:{},
     bass:[[0,'F1']],
     layers:[
-      {inst:'stimme_oo', set:{vol:-6, verb:84, tone:50, att:14, rel:88},
-       notes:[[0,'C5'],[2,'D5'],[3,'C5'],[6,'A4'],[8,'G4'],[10,'A4'],[13,'C5']]},
+      {inst:'stimme_ih', set:{vol:-7, verb:84, tone:56, att:12, rel:86},
+       notes:[[0,'C5'],[2,'D5'],[3,'C5'],[6,'A4'],[10,'G4'],[13,'A4']]},
       {inst:'gitarre', set:{vol:-9, verb:70, tone:50, att:6, rel:86},
        notes:[[0,'F3'],[8,'C4']]}
     ]});
@@ -2026,10 +2077,10 @@ function abendsonne(){
             hato:[0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,1,0] },
     bass:[[0,'A1'],[4,'A1'],[8,'F1'],[12,'G1']],
     layers:[
-      {inst:'frauenchor', set:{vol:-5, verb:68, tone:60, att:12, rel:80},
-       notes:[[0,'A4'],[3,'C5'],[6,'D5'],[8,'E5'],[11,'D5'],[14,'C5']]},
-      {inst:'stimme_aa', set:{vol:-9, verb:62, tone:64, att:6, rel:72},
-       notes:[[1,'E5'],[2,'G5'],[4,'E5'],[7,'D5'],[9,'A5'],[10,'G5'],[12,'E5'],[15,'D5']]},
+      {inst:'frauenchor', set:{vol:-5, verb:68, tone:60, att:12, rel:76},
+       notes:[[0,'A4'],[2,'C5'],[4,'D5'],[6,'C5']]},
+      {inst:'stimme_aa', set:{vol:-6, verb:62, tone:64, att:6, rel:70},
+       notes:[[8,'E5'],[9,'G5'],[10,'E5'],[12,'D5'],[14,'C5'],[15,'A4']]},
       {inst:'gitarre', set:{vol:-6, verb:48, tone:60, att:4, rel:64}, notes:GIT},
       {inst:'cello', set:{vol:-13, verb:52, tone:44, att:16, rel:74},
        notes:[[0,'A2'],[8,'F2']]}
@@ -2038,12 +2089,12 @@ function abendsonne(){
   const ausklang = S('Ausklang', {bpm:70,
     drums:{ kick:[1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0] },
     layers:[
-      {inst:'floete', set:{vol:-8, verb:82, tone:52, att:26, rel:94},
-       notes:[[0,'E5'],[8,'A4']]},
+      {inst:'floete', set:{vol:-8, verb:82, tone:52, att:24, rel:94},
+       notes:[[0,'E5'],[3,'D5']]},
       {inst:'gitarre', set:{vol:-9, verb:74, tone:48, att:6, rel:90},
        notes:[[0,'A3']]},
-      {inst:'stimme_oo', set:{vol:-13, verb:88, tone:46, att:20, rel:94},
-       notes:[[4,'A4'],[7,'G4'],[10,'E4'],[14,'A4']]}
+      {inst:'stimme_oo', set:{vol:-11, verb:88, tone:46, att:18, rel:94},
+       notes:[[8,'A4'],[11,'G4'],[14,'A4']]}
     ]});
 
   const sc=[intro,anfang,gesang,ruf,stille,drop,ausklang];
@@ -2916,9 +2967,40 @@ document.getElementById('fillSetBtn').addEventListener('click', ()=>{
    ========================================================== */
 let mediaRecorder=null, chunks=[];
 const vocalPitch=new Tone.PitchShift(0);
+/* Stimmverwandlung: Tonhoehe plus Formantlage.
+   Die Tonhoehe allein klingt nach Zeitraffer – erst die verschobenen
+   Resonanzen lassen eine Stimme wirklich anders wirken. */
+const vocalHP    = new Tone.Filter({type:'highpass', frequency:80, rolloff:-12});
+const vocalForm1 = new Tone.Filter({type:'peaking', frequency:700,  Q:1.1, gain:0});
+const vocalForm2 = new Tone.Filter({type:'peaking', frequency:1900, Q:1.0, gain:0});
+const vocalAir   = new Tone.Filter({type:'highshelf', frequency:5200, gain:0});
+const vocalBody  = new Tone.Filter({type:'lowshelf', frequency:260, gain:0});
 const vocalReverb=new Tone.Reverb({decay:2.8, wet:0.18});
 const vocalGainNode=new Tone.Gain(1);
-vocalPitch.chain(vocalReverb, vocalGainNode, masterGain);
+vocalPitch.chain(vocalHP, vocalBody, vocalForm1, vocalForm2, vocalAir,
+                 vocalReverb, vocalGainNode, masterGain);
+
+/* Voreinstellungen: Halbtoene, Hochpass, Bauch, zwei Formanten, Luft */
+const STIMM_PRESETS = {
+  aus:      {name:'unverändert', pitch:0,  hp:80,  body:0,    f1:700,  g1:0,   f2:1900, g2:0,   air:0},
+  weich:    {name:'etwas heller', pitch:3, hp:110, body:-2.5, f1:780,  g1:2.5, f2:2100, g2:2.5, air:1.5},
+  weiblich: {name:'weiblich',    pitch:5,  hp:140, body:-5,   f1:860,  g1:4.5, f2:2350, g2:4.5, air:3},
+  hell:     {name:'sehr hell',   pitch:7,  hp:170, body:-7,   f1:950,  g1:6,   f2:2650, g2:6,   air:4.5},
+  tief:     {name:'tiefer',      pitch:-4, hp:60,  body:3,    f1:560,  g1:3,   f2:1400, g2:2,   air:-2}
+};
+function applyStimme(key){
+  const p = STIMM_PRESETS[key] || STIMM_PRESETS.aus;
+  vocalPitch.pitch = p.pitch;
+  vocalHP.frequency.rampTo(p.hp, 0.08);
+  vocalBody.gain.rampTo(p.body, 0.08);
+  vocalForm1.frequency.rampTo(p.f1, 0.08);
+  vocalForm1.gain.rampTo(p.g1, 0.08);
+  vocalForm2.frequency.rampTo(p.f2, 0.08);
+  vocalForm2.gain.rampTo(p.g2, 0.08);
+  vocalAir.gain.rampTo(p.air, 0.08);
+  const sl = document.getElementById('vocalPitch');
+  if(sl){ sl.value = p.pitch; document.getElementById('pitchVal').textContent = p.pitch; }
+}
 
 /* Aufnahmen der laufenden Sitzung */
 const takes = [];          // {id,name,buffer,player,start,end}
@@ -3081,6 +3163,9 @@ document.getElementById('vocalVerb').addEventListener('input', e=>{
 document.getElementById('vocalPitch').addEventListener('input', e=>{
   vocalPitch.pitch=Number(e.target.value);
   document.getElementById('pitchVal').textContent=e.target.value;
+});
+document.getElementById('stimmPreset').addEventListener('change', e=>{
+  applyStimme(e.target.value);
 });
 ['trimStart','trimEnd'].forEach(id=>{
   document.getElementById(id).addEventListener('input', ()=>{
