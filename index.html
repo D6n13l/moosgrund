@@ -14,7 +14,7 @@
 <title>Moosgrund</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Italianno&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Yellowtail&family=Kaushan+Script&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
   :root{
@@ -77,10 +77,10 @@
   header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;
     background:var(--edge);}
   h1{
-    font-family:'Italianno',cursive;font-weight:400;
-    font-size:clamp(3rem,15vw,5rem);
+    font-family:'Yellowtail','Kaushan Script',cursive;font-weight:400;
+    font-size:clamp(2rem,9.6vw,3.4rem);
     text-transform:lowercase;
-    margin:0;line-height:1.18;letter-spacing:0.012em;
+    margin:0;line-height:1.26;letter-spacing:0.004em;
     padding:14px 10px 22px 4px;
     white-space:nowrap;overflow:visible;
     color:#ffd9f2;
@@ -151,32 +151,60 @@
     from{filter:hue-rotate(0deg);}
     to  {filter:hue-rotate(360deg);}
   }
-  .glas{position:absolute;right:-2px;top:50%;margin-top:-31px;width:52px;height:62px;
-    pointer-events:none;overflow:visible;}
-  .glas .jar{fill:rgba(150,200,255,0.05);stroke:rgba(180,215,255,0.42);stroke-width:2.2;}
-  .glas .lid{fill:rgba(180,215,255,0.14);stroke:rgba(180,215,255,0.5);stroke-width:2;}
-  .glas .holes{stroke:rgba(180,215,255,0.55);stroke-width:1.6;stroke-linecap:round;}
-  .glas .shine{stroke:rgba(255,255,255,0.30);stroke-width:2;stroke-linecap:round;fill:none;}
-  .glas .fly{animation:fly-weg 9s ease-in-out infinite;}
-  .glas .fly circle{fill:#ffe07a;animation:fly-leuchten 2.6s ease-in-out infinite;}
-  .glas .halo{fill:#ffd45a;opacity:0.22;animation:fly-halo 2.6s ease-in-out infinite;}
+  .glas{position:absolute;right:-4px;top:50%;margin-top:-36px;width:58px;height:74px;
+    pointer-events:none;overflow:visible;
+    filter:drop-shadow(0 3px 7px rgba(0,0,0,0.55));}
+  /* Flugbahn – alle Spiegelungen folgen ihr, nur anders stark */
+  .glas .fly      {animation:fly-weg 11s ease-in-out infinite;}
+  .glas .fly-l    {animation:fly-links 11s ease-in-out infinite;}
+  .glas .fly-r    {animation:fly-rechts 11s ease-in-out infinite;}
+  .glas .fly-b    {animation:fly-boden 11s ease-in-out infinite;}
+  .glas .puls     {animation:fly-puls 3.1s ease-in-out infinite;}
   @keyframes fly-weg{
-    0%   {transform:translate(0px,0px);}
-    18%  {transform:translate(7px,-9px);}
-    33%  {transform:translate(-6px,-14px);}
-    50%  {transform:translate(8px,4px);}
-    68%  {transform:translate(-7px,9px);}
-    84%  {transform:translate(4px,-4px);}
-    100% {transform:translate(0px,0px);}
+    0%   {transform:translate(0,0);}
+    15%  {transform:translate(7px,-11px);}
+    30%  {transform:translate(-6px,-16px);}
+    45%  {transform:translate(9px,3px);}
+    60%  {transform:translate(-8px,10px);}
+    78%  {transform:translate(5px,-5px);}
+    100% {transform:translate(0,0);}
   }
-  @keyframes fly-leuchten{
-    0%,100%{opacity:0.25;}
-    42%    {opacity:1;}
-    60%    {opacity:0.45;}
+  @keyframes fly-links{
+    0%   {transform:translate(0,0);opacity:0.34;}
+    15%  {transform:translate(1.4px,-10px);opacity:0.20;}
+    30%  {transform:translate(-1.2px,-14px);opacity:0.62;}
+    45%  {transform:translate(1.8px,3px);opacity:0.18;}
+    60%  {transform:translate(-1.6px,9px);opacity:0.66;}
+    78%  {transform:translate(1px,-4px);opacity:0.26;}
+    100% {transform:translate(0,0);opacity:0.34;}
   }
-  @keyframes fly-halo{
-    0%,100%{opacity:0.05;transform:scale(0.7);}
-    42%    {opacity:0.32;transform:scale(1.35);}
+  @keyframes fly-rechts{
+    0%   {transform:translate(0,0);opacity:0.28;}
+    15%  {transform:translate(-1.4px,-10px);opacity:0.60;}
+    30%  {transform:translate(1.2px,-14px);opacity:0.16;}
+    45%  {transform:translate(-1.8px,3px);opacity:0.64;}
+    60%  {transform:translate(1.6px,9px);opacity:0.15;}
+    78%  {transform:translate(-1px,-4px);opacity:0.48;}
+    100% {transform:translate(0,0);opacity:0.28;}
+  }
+  @keyframes fly-boden{
+    0%   {transform:translate(0,0) scale(1);opacity:0.45;}
+    15%  {transform:translate(5.6px,0) scale(0.82);opacity:0.30;}
+    30%  {transform:translate(-4.8px,0) scale(0.72);opacity:0.22;}
+    45%  {transform:translate(7.2px,0) scale(1.05);opacity:0.55;}
+    60%  {transform:translate(-6.4px,0) scale(1.18);opacity:0.62;}
+    78%  {transform:translate(4px,0) scale(0.92);opacity:0.40;}
+    100% {transform:translate(0,0) scale(1);opacity:0.45;}
+  }
+  /* das Leuchten selbst: unregelmaessiges Pulsen */
+  @keyframes fly-puls{
+    0%,100%{opacity:0.30;}
+    12%    {opacity:0.85;}
+    20%    {opacity:0.35;}
+    38%    {opacity:1;}
+    52%    {opacity:0.42;}
+    66%    {opacity:0.92;}
+    80%    {opacity:0.28;}
   }
   .layers{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
   .layer-chip{border:1px solid var(--edge);background:transparent;color:var(--ink-soft);
@@ -267,7 +295,7 @@
     background:radial-gradient(ellipse 70% 45% at 50% 30%, rgba(255,92,200,0.12), transparent 65%),
       linear-gradient(178deg,#0a1024,#05080f);}
   #gate.hidden{display:none;}
-  #gate h2{font-family:'Italianno',cursive;font-weight:400;font-size:3rem;margin:0;
+  #gate h2{font-family:'Yellowtail','Kaushan Script',cursive;font-weight:400;font-size:3rem;margin:0;
     color:#ffd9f2;text-shadow:0 0 8px rgba(255,92,200,0.6),0 0 24px rgba(255,92,200,0.35),
     0 0 55px rgba(255,92,200,0.2);}
   #gate p{color:var(--ink-soft);font-size:0.84rem;max-width:330px;line-height:1.65;margin:0;}
@@ -392,9 +420,8 @@
   @media (prefers-reduced-motion:reduce){
     *{transition:none!important;}
     h1{animation:none!important;filter:none;opacity:1;}
-    .glas .fly{animation:none!important;}
-    .glas .fly circle{animation-duration:6s!important;}
-    .glas .halo{animation-duration:6s!important;}
+    .glas .fly,.glas .fly-l,.glas .fly-r,.glas .fly-b{animation:none!important;}
+    .glas .puls{animation-duration:7s!important;}
   }
 </style>
 </head>
@@ -409,29 +436,114 @@
 
 <div class="wrap">
   <header>
-    <svg class="glas" viewBox="0 0 60 74" aria-hidden="true">
+    <svg class="glas" viewBox="0 0 64 82" aria-hidden="true">
       <defs>
-        <radialGradient id="flyGlow" cx="50%" cy="50%">
-          <stop offset="0%" stop-color="#ffe27a" stop-opacity="0.85"/>
-          <stop offset="100%" stop-color="#ffd45a" stop-opacity="0"/>
+        <linearGradient id="gBody" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0"    stop-color="#ffffff" stop-opacity="0.30"/>
+          <stop offset="0.10" stop-color="#cfe6ff" stop-opacity="0.10"/>
+          <stop offset="0.32" stop-color="#9ec4e8" stop-opacity="0.045"/>
+          <stop offset="0.62" stop-color="#9ec4e8" stop-opacity="0.05"/>
+          <stop offset="0.88" stop-color="#cfe6ff" stop-opacity="0.13"/>
+          <stop offset="1"    stop-color="#ffffff" stop-opacity="0.34"/>
+        </linearGradient>
+        <linearGradient id="gTint" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0"   stop-color="#7fc4ff" stop-opacity="0.06"/>
+          <stop offset="0.7" stop-color="#4f86c0" stop-opacity="0.13"/>
+          <stop offset="1"   stop-color="#2f5f96" stop-opacity="0.22"/>
+        </linearGradient>
+        <linearGradient id="gLid" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0"    stop-color="#6d7686"/>
+          <stop offset="0.16" stop-color="#c9d3e2"/>
+          <stop offset="0.34" stop-color="#8a95a6"/>
+          <stop offset="0.55" stop-color="#e2eaf5"/>
+          <stop offset="0.78" stop-color="#7d8797"/>
+          <stop offset="1"    stop-color="#5c6474"/>
+        </linearGradient>
+        <radialGradient id="gFly" cx="50%" cy="50%">
+          <stop offset="0"    stop-color="#fffbe0" stop-opacity="1"/>
+          <stop offset="0.22" stop-color="#ffe98a" stop-opacity="0.85"/>
+          <stop offset="0.55" stop-color="#ffd34a" stop-opacity="0.35"/>
+          <stop offset="1"    stop-color="#ffc21a" stop-opacity="0"/>
         </radialGradient>
+        <filter id="blurS" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="0.9"/>
+        </filter>
+        <filter id="blurM" x="-90%" y="-90%" width="280%" height="280%">
+          <feGaussianBlur stdDeviation="2.2"/>
+        </filter>
+        <clipPath id="jarClip">
+          <path d="M23,20 C23,20 13.5,26 13.5,33.5 L13.5,68 Q13.5,76.5 22,76.5 L42,76.5 Q50.5,76.5 50.5,68 L50.5,33.5 C50.5,26 41,20 41,20 Z"/>
+        </clipPath>
       </defs>
-      <!-- Deckel mit Luftloechern -->
-      <rect class="lid" x="16" y="5" width="28" height="8" rx="2.5"/>
-      <g class="holes">
-        <line x1="23" y1="9" x2="23" y2="9"/>
-        <line x1="30" y1="9" x2="30" y2="9"/>
-        <line x1="37" y1="9" x2="37" y2="9"/>
+
+      <g class="puls">
+        <ellipse cx="32" cy="50" rx="24" ry="30" fill="#ffd34a" opacity="0.10" filter="url(#blurM)"/>
       </g>
-      <!-- Glas -->
-      <path class="jar" d="M19 13 h22 v4 q6 3 6 11 v33 q0 8 -8 8 h-18 q-8 0 -8 -8 v-33 q0 -8 6 -11 z"/>
-      <path class="shine" d="M22 26 q-2 6 -2 14 v12"/>
-      <!-- Gluehwuermchen -->
-      <g class="fly">
-        <circle class="halo" cx="30" cy="42" r="13" fill="url(#flyGlow)"/>
-        <circle cx="30" cy="42" r="2.6"/>
+
+      <g clip-path="url(#jarClip)">
+        <rect x="0" y="0" width="64" height="82" fill="url(#gTint)"/>
+        <rect x="0" y="0" width="64" height="82" fill="url(#gBody)"/>
+
+        <!-- Lichtfleck am Boden -->
+        <g class="fly-b"><g class="puls">
+          <ellipse cx="32" cy="73.5" rx="9" ry="2.6" fill="url(#gFly)" filter="url(#blurS)"/>
+        </g></g>
+
+        <!-- Spiegelung in der linken Glaswand -->
+        <g class="fly-l"><g class="puls">
+          <ellipse cx="16.4" cy="46" rx="2.6" ry="7.5" fill="url(#gFly)" filter="url(#blurS)"/>
+        </g></g>
+        <!-- Spiegelung in der rechten Glaswand -->
+        <g class="fly-r"><g class="puls">
+          <ellipse cx="47.6" cy="46" rx="2.2" ry="6.5" fill="url(#gFly)" filter="url(#blurS)"/>
+        </g></g>
+
+        <!-- das Tier selbst -->
+        <g class="fly">
+          <g class="puls">
+            <circle cx="30" cy="44" r="11" fill="url(#gFly)"/>
+          </g>
+          <ellipse cx="30" cy="43.4" rx="1.6" ry="1.05" fill="#2a2418" opacity="0.75"/>
+          <g class="puls">
+            <ellipse cx="30" cy="44.6" rx="1.15" ry="0.85" fill="#fff8c8"/>
+          </g>
+        </g>
+
+        <!-- Glasdicke und Glanz -->
+        <path d="M14.6,33 L14.6,69" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.1" fill="none"/>
+        <path d="M49.4,33 L49.4,69" stroke="#ffffff" stroke-opacity="0.22" stroke-width="0.9" fill="none"/>
+        <path d="M20,28 Q17.6,38 17.6,52 L17.6,64" stroke="#ffffff" stroke-opacity="0.42"
+              stroke-width="2.1" stroke-linecap="round" fill="none" filter="url(#blurS)"/>
+        <path d="M44.5,32 Q46.4,42 46.4,58" stroke="#ffffff" stroke-opacity="0.18"
+              stroke-width="1.4" stroke-linecap="round" fill="none" filter="url(#blurS)"/>
       </g>
-    </svg>    <h1>Moosgrund</h1>
+
+      <path d="M23,20 C23,20 13.5,26 13.5,33.5 L13.5,68 Q13.5,76.5 22,76.5 L42,76.5 Q50.5,76.5 50.5,68 L50.5,33.5 C50.5,26 41,20 41,20"
+            fill="none" stroke="#dbeaff" stroke-opacity="0.55" stroke-width="1.15"/>
+      <path d="M17,73.5 Q32,77.5 47,73.5" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="0.9"/>
+
+      <path d="M22.6,20.5 L22.6,13.5 M41.4,20.5 L41.4,13.5" stroke="#dbeaff" stroke-opacity="0.55" stroke-width="1.15"/>
+      <ellipse cx="32" cy="20.4" rx="9.4" ry="2.2" fill="none" stroke="#cfe4ff" stroke-opacity="0.30" stroke-width="0.8"/>
+      <ellipse cx="32" cy="13.6" rx="9.4" ry="2.3" fill="#bcd8f5" fill-opacity="0.10"
+               stroke="#e6f1ff" stroke-opacity="0.5" stroke-width="0.9"/>
+
+      <rect x="19.2" y="4.6" width="25.6" height="9.6" rx="2" fill="url(#gLid)"/>
+      <rect x="19.2" y="4.6" width="25.6" height="9.6" rx="2" fill="none" stroke="#39404d" stroke-opacity="0.6" stroke-width="0.6"/>
+      <g stroke="#2f3742" stroke-opacity="0.35" stroke-width="0.5">
+        <line x1="24" y1="5.6" x2="24" y2="12.9"/>
+        <line x1="28" y1="5.6" x2="28" y2="12.9"/>
+        <line x1="32" y1="5.6" x2="32" y2="12.9"/>
+        <line x1="36" y1="5.6" x2="36" y2="12.9"/>
+        <line x1="40" y1="5.6" x2="40" y2="12.9"/>
+      </g>
+      <ellipse cx="32" cy="4.7" rx="12.8" ry="1.9" fill="#aab4c4"/>
+      <ellipse cx="32" cy="4.4" rx="9.4" ry="1.1" fill="#e6edf7" opacity="0.75"/>
+      <g fill="#2b323d" opacity="0.8">
+        <circle cx="27" cy="4.3" r="0.8"/>
+        <circle cx="32" cy="4.1" r="0.8"/>
+        <circle cx="37" cy="4.3" r="0.8"/>
+      </g>
+    </svg>   <h1>Moosgrund</h1>
   </header>
 
   <div class="garland"><i style="background:#ff5cc8;box-shadow:0 0 6px #ff5cc8,0 0 12px #ff5cc8;animation-delay:0.00s"></i><i style="background:#ffb03a;box-shadow:0 0 6px #ffb03a,0 0 12px #ffb03a;animation-delay:0.31s"></i><i style="background:#4ee6ff;box-shadow:0 0 6px #4ee6ff,0 0 12px #4ee6ff;animation-delay:0.62s"></i><i style="background:#7dff9b;box-shadow:0 0 6px #7dff9b,0 0 12px #7dff9b;animation-delay:0.19s"></i><i style="background:#a97bff;box-shadow:0 0 6px #a97bff,0 0 12px #a97bff;animation-delay:0.88s"></i><i style="background:#ff6b6b;box-shadow:0 0 6px #ff6b6b,0 0 12px #ff6b6b;animation-delay:0.44s"></i><i style="background:#ffb03a;box-shadow:0 0 6px #ffb03a,0 0 12px #ffb03a;animation-delay:1.12s"></i><i style="background:#4ee6ff;box-shadow:0 0 6px #4ee6ff,0 0 12px #4ee6ff;animation-delay:0.07s"></i><i style="background:#ff5cc8;box-shadow:0 0 6px #ff5cc8,0 0 12px #ff5cc8;animation-delay:0.73s"></i><i style="background:#7dff9b;box-shadow:0 0 6px #7dff9b,0 0 12px #7dff9b;animation-delay:1.35s"></i><i style="background:#a97bff;box-shadow:0 0 6px #a97bff,0 0 12px #a97bff;animation-delay:0.26s"></i><i style="background:#ffb03a;box-shadow:0 0 6px #ffb03a,0 0 12px #ffb03a;animation-delay:0.95s"></i><i style="background:#4ee6ff;box-shadow:0 0 6px #4ee6ff,0 0 12px #4ee6ff;animation-delay:0.55s"></i><i style="background:#ff5cc8;box-shadow:0 0 6px #ff5cc8,0 0 12px #ff5cc8;animation-delay:1.20s"></i></div>
