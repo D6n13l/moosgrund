@@ -864,6 +864,14 @@
       </div>
       <div id="tippBox" class="tipps"></div>
 
+      <div class="voicebar" style="margin-bottom:12px;">
+        <span class="ctl">Tempo dieser Szene
+          <select id="sceneBpm">
+            <option value="">wie Projekt</option>
+          </select>
+        </span>
+      </div>
+
       <div class="voicebar">
         <span class="ctl">Aufnahme
           <select id="sceneTake"><option value="">– keine –</option></select>
@@ -933,6 +941,9 @@
             <option value="glocke">Glocke</option>
           </optgroup>
           <optgroup label="Stimmen">
+            <option value="stimme_aa">Frauenstimme Ah</option>
+            <option value="stimme_oo">Frauenstimme Oh</option>
+            <option value="frauenchor">Frauenchor</option>
             <option value="kinderchor">Kinderchor</option>
           </optgroup>
           <optgroup label="Synth">
@@ -1067,6 +1078,23 @@
         <button id="newBtn2">Neu</button>
         <button id="saveBtn2" class="primary">Sichern</button>
       </div>
+
+      <div class="sectionlabel">Vorlagen</div>
+      <div class="lib-item">
+        <div style="flex:1">
+          <div class="nm">Sommernacht</div>
+          <div class="meta">Electro, 126 bpm, Violine, Aufbau und Drop</div>
+        </div>
+        <button class="mini" data-vorlage="sommernacht">Öffnen</button>
+      </div>
+      <div class="lib-item">
+        <div style="flex:1">
+          <div class="nm">Abendsonne</div>
+          <div class="meta">Ruhiger Gitarrenbeat, 84 bpm, Frauenstimme</div>
+        </div>
+        <button class="mini" data-vorlage="abendsonne">Öffnen</button>
+      </div>
+      <div class="hint">Vorlagen öffnen ein fertiges Stück zum Weiterbauen. Sichere es unter eigenem Namen, damit es in der Liste oben erscheint.</div>
 
       <div class="sectionlabel">Datei</div>
       <div class="btnrow even">
@@ -1220,11 +1248,21 @@ async function findDrumBase(){
     }catch(e){}
   }
   drumSearchDone = true;
-  if(DRUM_BASE) loadKit();
+  if(DRUM_BASE){
+    loadKit();
+    Object.values(layerChains).forEach(c=>{
+      Object.values(c.voices).forEach(v=>{
+        if(v.def.sample && v.def.sample.src==='berklee' && !v.sampler) attachSampler(v, c);
+      });
+    });
+  }
   updateKitHint();
   return DRUM_BASE;
 }
 
+function voiceBase(){
+  return DRUM_BASE ? DRUM_BASE.replace('drum-samples/','berklee/') : null;
+}
 function loadKit(){
   if(!DRUM_BASE || !song) return;
   const kit = song.kit || 'acoustic-kit';
@@ -1448,14 +1486,23 @@ async function findSampleBase(){
 }
 
 function attachSampler(v, chain){
-  if(!SAMPLE_BASE || !v.def.sample || v.sampler) return;
+  if(!v.def.sample || v.sampler) return;
   const c = chain || v.chain;
-  const urls = {};
-  v.def.sample.notes.forEach(n=>{ urls[toSharp(n)] = n + '.mp3'; });
+  const sp = v.def.sample;
+  let urls = {}, base = null;
+  if(sp.src === 'berklee'){
+    base = voiceBase();
+    if(!base) return;                     // Quelle noch nicht bekannt
+    urls = sp.files;
+  } else {
+    if(!SAMPLE_BASE) return;
+    base = SAMPLE_BASE + sp.folder + '/';
+    sp.notes.forEach(n=>{ urls[toSharp(n)] = n + '.mp3'; });
+  }
   try{
     v.failed = false;
     v.sampler = new Tone.Sampler({
-      urls, baseUrl: SAMPLE_BASE + v.def.sample.folder + '/',
+      urls, baseUrl: base,
       release: 1.1,
       onload: ()=>{ v.ready = true; updateLoadHint(); },
       onerror: ()=>{ v.failed = true; v.sampler = null; updateLoadHint(); }
@@ -1583,6 +1630,25 @@ const INSTRUMENTS = {
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.8, sustain:0, release:0.8}}},
 
   /* ---- Stimmen ---- */
+  stimme_aa:{label:'Frauenstimme Ah', vol:-9, sample:{src:'berklee', files:{
+      'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3','Eb4':'femalevoice_aa_Eb4.mp3',
+      'A4':'femalevoice_aa_A4.mp3','Db5':'femalevoice_aa_Db5.mp3','F5':'femalevoice_aa_F5.mp3',
+      'A5':'femalevoice_aa_A5.mp3','C6':'femalevoice_aa_C6.mp3'}},
+    voice:Tone.AMSynth, opts:{harmonicity:1.5, oscillator:{type:'sine'},
+      envelope:{attack:0.3, decay:0.3, sustain:0.9, release:1.4}, modulation:{type:'sine'}}},
+  stimme_oo:{label:'Frauenstimme Oh', vol:-9, sample:{src:'berklee', files:{
+      'A3':'femalevoice_oo_femalevoice_oo_A3.mp3','Db4':'femalevoice_oo_Db4.mp3',
+      'A4':'femalevoice_oo_A4.mp3','Db5':'femalevoice_oo_Db5.mp3',
+      'A5':'femalevoice_oo_A5.mp3','C6':'femalevoice_oo_C6.mp3'}},
+    voice:Tone.AMSynth, opts:{harmonicity:1.2, oscillator:{type:'sine'},
+      envelope:{attack:0.35, decay:0.3, sustain:0.9, release:1.6}, modulation:{type:'sine'}}},
+  frauenchor:{label:'Frauenchor', vol:-11, sample:{src:'berklee', files:{
+      'A3':'femalevoices_aa2_A3.mp3','C#4':'femalevoices_aa2_C#4.mp3',
+      'A4':'femalevoices_aa2_A4.mp3','C5':'femalevoices_aa2_C5.mp3',
+      'F#5':'femalevoices_aa2_F#5.mp3','A5':'femalevoices_aa2_A5.mp3',
+      'C6':'femalevoices_aa2_C6.mp3'}},
+    voice:Tone.AMSynth, opts:{harmonicity:2, oscillator:{type:'sine'},
+      envelope:{attack:0.45, decay:0.35, sustain:0.9, release:1.8}, modulation:{type:'triangle'}}},
   kinderchor:{label:'Kinderchor', vol:-9, choir:true, shift:12,
     voice:Tone.AMSynth, opts:{harmonicity:1.002, oscillator:{type:'fatsine', count:4, spread:22},
       envelope:{attack:0.35, decay:0.5, sustain:0.88, release:2.2},
@@ -1719,7 +1785,7 @@ function makeScene(name, preset){
   const s = {id:'s'+uid(), name, drums:emptyDrums(),
     bass:new Array(16).fill(null), mel:new Array(16).fill(null),
     layers:[newLayer('piano')],
-    voice:new Array(16).fill(0), voiceTake:null, voiceEvery:1};
+    voice:new Array(16).fill(0), voiceTake:null, voiceEvery:1, bpm:null};
   if(preset==='intro'){
     s.drums.hatc=[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0];
     s.layers[0].instrument='glocke';
@@ -1861,6 +1927,110 @@ function demoSong(){
   };
 }
 
+function abendsonne(){
+  const S = (name, def)=>{
+    const sc = {id:'s'+uid(), name, drums:emptyDrums(),
+      bass:new Array(16).fill(null), voice:new Array(16).fill(0),
+      voiceTake:null, voiceEvery:1, bpm:def.bpm||null, layers:[]};
+    Object.assign(sc.drums, def.drums||{});
+    if(def.bass) def.bass.forEach(([i,n])=> sc.bass[i]=n);
+    (def.layers||[]).forEach(L=>{
+      const lay = newLayer(L.inst);
+      Object.assign(lay.settings, L.set||{});
+      (L.notes||[]).forEach(([i,n])=> lay.mel[i]=n);
+      sc.layers.push(lay);
+    });
+    if(!sc.layers.length) sc.layers.push(newLayer('gitarre'));
+    return sc;
+  };
+
+  /* gemuetlicher Halbzeit-Beat: Kick auf 1 und 11, Snare auf 9 */
+  const KICK  = [1,0,0,0, 0,0,0,0, 0,0,1,0, 0,0,0,0];
+  const SNARE = [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0];
+  const HAT   = [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0];
+  const HAT_S = [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,1,0];
+
+  /* Am – F – C – G, warm und offen */
+  const gitAkkord = [[0,'A3'],[3,'E4'],[6,'C4'],[8,'F3'],[11,'C4'],[14,'A3']];
+
+  const intro = S('Intro', {bpm:82,
+    layers:[
+      {inst:'gitarre', set:{vol:-4, verb:52, tone:60, att:4, rel:64},
+       notes:[[0,'A3'],[6,'C4'],[10,'E4'],[14,'C4']]}
+    ]});
+
+  const anfang = S('Anfang', {bpm:82,
+    drums:{ hatc:HAT_S },
+    bass:[[0,'A1'],[10,'A1']],
+    layers:[
+      {inst:'gitarre', set:{vol:-4, verb:46, tone:62, att:4, rel:58}, notes:gitAkkord},
+      {inst:'harfe', set:{vol:-15, verb:66, tone:66, att:6, rel:76},
+       notes:[[3,'E4'],[11,'A4']]}
+    ]});
+
+  const groove = S('Groove', {bpm:84,
+    drums:{ kick:KICK, snare:SNARE, hatc:HAT },
+    bass:[[0,'A1'],[6,'A1'],[8,'F1'],[14,'G1']],
+    layers:[
+      {inst:'gitarre', set:{vol:-4, verb:42, tone:64, att:3, rel:54}, notes:gitAkkord},
+      {inst:'epiano', set:{vol:-14, verb:48, tone:58, att:6, rel:62},
+       notes:[[2,'C4'],[8,'A3'],[12,'E4']]}
+    ]});
+
+  const gesang = S('Gesang', {bpm:84,
+    drums:{ kick:KICK, snare:SNARE, hatc:HAT_S },
+    bass:[[0,'A1'],[8,'F1']],
+    layers:[
+      {inst:'stimme_aa', set:{vol:-3, verb:62, tone:66, att:10, rel:74},
+       notes:[[0,'A4'],[4,'C5'],[8,'E5'],[12,'C5']]},
+      {inst:'gitarre', set:{vol:-9, verb:44, tone:60, att:4, rel:56}, notes:gitAkkord}
+    ]});
+
+  const bruecke = S('Brücke', {bpm:84,
+    drums:{ hatc:HAT_S },
+    bass:[[0,'F1']],
+    layers:[
+      {inst:'stimme_oo', set:{vol:-5, verb:74, tone:58, att:16, rel:86},
+       notes:[[0,'C5'],[8,'A4']]},
+      {inst:'gitarre', set:{vol:-8, verb:56, tone:56, att:5, rel:70},
+       notes:[[0,'F3'],[6,'C4'],[12,'A3']]}
+    ]});
+
+  const drop = S('Drop', {bpm:86,
+    drums:{ kick:KICK, snare:SNARE, hatc:HAT,
+            hato:[0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,1,0] },
+    bass:[[0,'A1'],[3,'A1'],[6,'E1'],[8,'F1'],[11,'F1'],[14,'G1']],
+    layers:[
+      {inst:'gitarre', set:{vol:-2, verb:38, tone:70, att:3, rel:52}, notes:gitAkkord},
+      {inst:'frauenchor', set:{vol:-6, verb:58, tone:64, att:12, rel:78},
+       notes:[[0,'A4'],[8,'C5'],[12,'E5']]},
+      {inst:'cello', set:{vol:-12, verb:44, tone:48, att:14, rel:66},
+       notes:[[0,'A2'],[8,'F2']]}
+    ]});
+
+  const ausklang = S('Ausklang', {bpm:78,
+    drums:{ hatc:[1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0] },
+    layers:[
+      {inst:'gitarre', set:{vol:-6, verb:66, tone:54, att:5, rel:82},
+       notes:[[0,'A3'],[8,'E4']]},
+      {inst:'stimme_oo', set:{vol:-11, verb:80, tone:52, att:22, rel:92},
+       notes:[[0,'A4']]}
+    ]});
+
+  const sc=[intro,anfang,groove,gesang,bruecke,drop,ausklang];
+  const A=(x,b)=>({sceneId:x.id, bars:b});
+  return {
+    id:'p'+uid(), name:'Abendsonne', bpm:84,
+    kick:{druck:32, tiefe:52, laenge:38, sub:22}, kit:'acoustic-kit',
+    scenes:sc,
+    arrangement:[
+      A(intro,8), A(anfang,12), A(groove,16), A(gesang,16),
+      A(bruecke,8), A(drop,24), A(groove,12), A(gesang,12),
+      A(drop,16), A(ausklang,8)
+    ]
+  };
+}
+
 let song = null;
 let editSceneId = null;
 let dirty = false;
@@ -1877,6 +2047,17 @@ let isPlaying=false, playMode='scene', tick=0, currentStep=0, soundingSceneId=nu
 
 function totalBars(){ return song.arrangement.reduce((a,b)=>a+b.bars,0); }
 function barSeconds(){ return (60/Tone.Transport.bpm.value)*4; }
+function blockSeconds(blk){
+  const sc = sceneById(blk.sceneId);
+  const bpm = (sc && sc.bpm) || song.bpm || 126;
+  return blk.bars * (60/bpm) * 4;
+}
+function setSeconds(){ return song.arrangement.reduce((a,b)=>a+blockSeconds(b), 0); }
+function secondsBefore(idx){
+  let t=0;
+  for(let i=0;i<idx && i<song.arrangement.length;i++) t += blockSeconds(song.arrangement[i]);
+  return t;
+}
 function sceneAtBar(bar){
   let acc=0;
   for(const blk of song.arrangement){
@@ -1900,6 +2081,14 @@ Tone.Transport.scheduleRepeat((time)=>{
   } else scene = editScene();
 
   if(!scene){ tick++; return; }
+
+  /* Tempo der Szene zum Taktanfang uebernehmen */
+  if(step === 0){
+    const ziel = scene.bpm || song.bpm;
+    if(Math.abs(Tone.Transport.bpm.value - ziel) > 0.2){
+      Tone.Transport.bpm.setValueAtTime(ziel, time);
+    }
+  }
 
   DRUM_TRACKS.forEach(t=>{ if(scene.drums[t.key][step]) triggerDrum(t.key, time); });
   if(scene.bass[step]) bassSynth.triggerAttackRelease(scene.bass[step], '8n', time);
@@ -2253,6 +2442,19 @@ document.getElementById('sceneTake').addEventListener('change', e=>{
   editScene().voiceTake = e.target.value || null;
   markDirty();
 });
+(function buildSceneBpm(){
+  const sel=document.getElementById('sceneBpm');
+  for(let b=88; b<=150; b+=2){
+    const o=document.createElement('option'); o.value=b; o.textContent=b+' bpm'; sel.appendChild(o);
+  }
+  sel.addEventListener('change', e=>{
+    const sc=editScene();
+    sc.bpm = e.target.value ? Number(e.target.value) : null;
+    if(!isPlaying) Tone.Transport.bpm.value = sc.bpm || song.bpm;
+    markDirty(); renderArrangement();
+  });
+})();
+
 document.getElementById('sceneEvery').addEventListener('change', e=>{
   editScene().voiceEvery = Number(e.target.value) || 1;
   markDirty();
@@ -2517,7 +2719,7 @@ function renderArrangement(){
     row.appendChild(barSel);
 
     const time=document.createElement('div');
-    time.className='arr-time'; time.textContent=fmt(blk.bars*barSeconds());
+    time.className='arr-time'; time.textContent=fmt(blockSeconds(blk));
     row.appendChild(time);
 
     const sp=document.createElement('div'); sp.className='arr-spacer'; row.appendChild(sp);
@@ -2537,7 +2739,7 @@ function renderArrangement(){
 
   const bars=totalBars();
   document.getElementById('setBars').textContent = bars+' Takte';
-  document.getElementById('setLength').textContent = fmt(bars*barSeconds());
+  document.getElementById('setLength').textContent = fmt(setSeconds());
 
   const tl=document.getElementById('timeline');
   const cursor=document.getElementById('tlCursor');
@@ -2594,9 +2796,9 @@ function updatePosition(t, force){
 
   const barInBlock = bar - acc + 1;
   const sc = sceneById(blk.sceneId);
-  const bs = barSeconds();
-  const elapsed = (t / STEPS) * bs;
-  const total   = totalBars() * bs;
+  const scBpm = (sc && sc.bpm) || song.bpm || 126;
+  const elapsed = secondsBefore(idx) + (bar - acc + (t % STEPS)/STEPS) * (60/scBpm)*4;
+  const total   = setSeconds();
   const pct     = ((bar - acc) + (t % STEPS)/STEPS) / blk.bars * 100;
 
   el.innerHTML =
@@ -2779,6 +2981,7 @@ function renderTakeSelect(){
     sel.appendChild(o);
   });
   document.getElementById('sceneEvery').value = sc.voiceEvery || 1;
+  document.getElementById('sceneBpm').value = sc.bpm ? String(sc.bpm) : '';
 }
 document.getElementById('recBtn').addEventListener('click', async ()=>{
   const btn=document.getElementById('recBtn');
@@ -2908,6 +3111,7 @@ function loadSongInto(obj){
     if(!Array.isArray(s.voice) || s.voice.length!==16) s.voice = new Array(16).fill(0);
     if(s.voiceEvery===undefined) s.voiceEvery = 1;
     if(s.voiceTake===undefined) s.voiceTake = null;
+    if(s.bpm===undefined) s.bpm = null;
   });
   if(!song.kick) song.kick = Object.assign({}, KICK_DEFAULT);
   if(!song.kit || !DRUM_KITS.some(k=>k.id===song.kit)) song.kit = 'Techno';
@@ -2986,6 +3190,16 @@ function renderLibrary(){
     el.appendChild(row);
   });
 }
+document.querySelectorAll('[data-vorlage]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    if(dirty && !confirm('Ungesicherte Änderungen gehen verloren. Vorlage trotzdem öffnen?')) return;
+    if(isPlaying) stopPlayback();
+    loadSongInto(b.dataset.vorlage==='abendsonne' ? abendsonne() : demoSong());
+    markDirty();
+    document.querySelector('.tab[data-tab="beats"]').click();
+  });
+});
+
 document.getElementById('newBtn').addEventListener('click', newProject);
 document.getElementById('newBtn2').addEventListener('click', newProject);
 document.getElementById('saveBtn').addEventListener('click', saveCurrent);
