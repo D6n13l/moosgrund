@@ -494,6 +494,14 @@
   .step.beat{border-color:rgba(255,255,255,0.62);}
   .step.lit{border-color:transparent;box-shadow:0 0 5px currentColor,0 0 11px currentColor;}
   .step.playhead{outline:1px solid rgba(232,236,250,0.75);outline-offset:2px;}
+  /* gesetzte Felder blitzen im Moment des Klangs auf */
+  .step.hit,.roll-cell.hit{
+    filter:brightness(2.4) saturate(1.25);
+    box-shadow:0 0 9px currentColor,0 0 22px currentColor;
+    transform:scale(1.22);}
+  .roll-cell.ghost.hit{filter:brightness(1.7);transform:scale(1.10);}
+  .step,.roll-cell{transition:transform .09s ease-out, filter .09s ease-out,
+    box-shadow .1s, background .1s;}
 
   /* ---------- piano roll ---------- */
   .roll{border:none;border-radius:0;background:transparent;
@@ -2692,6 +2700,7 @@ function refreshRolls(){
     c.style.color = '#a97bff';
     c.style.background = on ? '#a97bff' : (ghost ? 'rgba(169,123,255,0.22)' : '');
     c.classList.toggle('lit', !!on);
+    c.classList.toggle('ghost', !!ghost);
   });
 }
 let editLayerId = null;
@@ -2815,6 +2824,11 @@ function cacheStepEls(){
     stepRollEls[s] = [...document.querySelectorAll('.roll-cell[data-step="'+s+'"]')];
   }
 }
+let hitEls = [], hitTimer = null;
+function clearHits(){
+  hitEls.forEach(el=>el.classList.remove('hit'));
+  hitEls = [];
+}
 function updatePlayheads(){
   const show = isPlaying && (playMode==='scene' || soundingSceneId===editSceneId);
   if(lastLitStep>=0 && stepDrumEls[lastLitStep]){
@@ -2822,10 +2836,26 @@ function updatePlayheads(){
     stepRollEls[lastLitStep].forEach(el=>el.classList.remove('playcol'));
   }
   lastLitStep = -1;
+  clearHits();
   if(!show || !stepDrumEls[currentStep]) return;
-  stepDrumEls[currentStep].forEach(el=>el.classList.add('playhead'));
-  stepRollEls[currentStep].forEach(el=>el.classList.add('playcol'));
+
+  stepDrumEls[currentStep].forEach(el=>{
+    el.classList.add('playhead');
+    if(el.classList.contains('lit')){ el.classList.add('hit'); hitEls.push(el); }
+  });
+  stepRollEls[currentStep].forEach(el=>{
+    el.classList.add('playcol');
+    if(el.classList.contains('lit') || el.classList.contains('ghost')){
+      el.classList.add('hit'); hitEls.push(el);
+    }
+  });
   lastLitStep = currentStep;
+
+  /* Blitzdauer haengt am Tempo: immer deutlich kuerzer als ein Sechzehntel */
+  const sechzehntel = (60 / (Tone.Transport.bpm.value || 120)) / 4 * 1000;
+  const dauer = Math.max(40, Math.min(105, sechzehntel * 0.55));
+  clearTimeout(hitTimer);
+  hitTimer = setTimeout(clearHits, dauer);
 }
 
 /* ==========================================================
