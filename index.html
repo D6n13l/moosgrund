@@ -14,7 +14,7 @@
 <title>Moosgrund</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Yellowtail&family=Kaushan+Script&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Norican&family=Kaushan+Script&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
   :root{
@@ -77,10 +77,11 @@
   header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;
     background:var(--edge);}
   h1{
-    font-family:'Yellowtail','Kaushan Script',cursive;font-weight:400;
+    font-family:'Norican','Kaushan Script',cursive;font-weight:400;
     font-size:clamp(2rem,9.6vw,3.4rem);
     text-transform:lowercase;
-    margin:0;line-height:1.26;letter-spacing:0.004em;
+    margin:0;line-height:1.3;letter-spacing:-0.012em;
+    transform:skewX(-9deg);transform-origin:left center;
     padding:14px 10px 22px 4px;
     white-space:nowrap;overflow:visible;
     color:#ffd9f2;
@@ -337,6 +338,11 @@
   .take-item .nm{flex:1;font-size:0.78rem;}
   .take-item .meta{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--ink-faint);}
   .take-item .mini{padding:6px 9px;font-size:0.62rem;flex-shrink:0;}
+  /* Bei jedem Kick blitzen alle Tiere kurz auf */
+  .glas.kick .puls,.glas.kick .puls2,.glas.kick .puls3{
+    animation:none !important;opacity:1 !important;}
+  .glas.kick{filter:drop-shadow(0 4px 9px rgba(0,0,0,0.55))
+                    drop-shadow(0 0 9px rgba(255,214,110,0.55));}
   .pos{font-family:'IBM Plex Mono',monospace;font-size:0.63rem;letter-spacing:0.04em;
     color:var(--ink-soft);white-space:nowrap;}
   .pos b{color:var(--led-amber);font-weight:700;
@@ -418,7 +424,7 @@
     background:radial-gradient(ellipse 70% 45% at 50% 30%, rgba(255,92,200,0.12), transparent 65%),
       linear-gradient(178deg,#0a1024,#05080f);}
   #gate.hidden{display:none;}
-  #gate h2{font-family:'Yellowtail','Kaushan Script',cursive;font-weight:400;font-size:3rem;margin:0;
+  #gate h2{font-family:'Norican','Kaushan Script',cursive;font-weight:400;font-size:3rem;margin:0;
     color:#ffd9f2;text-shadow:0 0 8px rgba(255,92,200,0.6),0 0 24px rgba(255,92,200,0.35),
     0 0 55px rgba(255,92,200,0.2);}
   #gate p{color:var(--ink-soft);font-size:0.84rem;max-width:330px;line-height:1.65;margin:0;}
@@ -637,7 +643,7 @@
       <filter id="bM" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="2.4"/></filter>
       <filter id="bL" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="5"/></filter>
       <clipPath id="clipJar">
-        <path d="M35,17 C31,17 21,19 15,24 C10.5,28 9,32 9,38 L9,60 C9,68 14,71.5 22,71.5 L74,71.5 C82,71.5 87,68 87,60 L87,38 C87,32 85.5,28 81,24 C75,19 65,17 61,17 Z"/>
+        <path d="M9,20 L9,60 C9,68 14,71.5 22,71.5 L74,71.5 C82,71.5 87,68 87,60 L87,20 Z"/>
       </clipPath>
     </defs>
     
@@ -757,39 +763,29 @@
     </g>
     
     <!-- Glasumriss -->
-    <path d="M35,17 C31,17 21,19 15,24 C10.5,28 9,32 9,38 L9,60 C9,68 14,71.5 22,71.5 L74,71.5 C82,71.5 87,68 87,60 L87,38 C87,32 85.5,28 81,24 C75,19 65,17 61,17"
+    <path d="M9,20 L9,60 C9,68 14,71.5 22,71.5 L74,71.5 C82,71.5 87,68 87,60 L87,20"
           fill="none" stroke="#e2f0ff" stroke-opacity="0.55" stroke-width="1.15"/>
     <path d="M14,68 Q48,74.5 82,68" fill="none" stroke="#ffffff" stroke-opacity="0.26" stroke-width="1"/>
     
     <!-- Mündung -->
-    <path d="M35,17 L35,12.5 M61,17 L61,12.5" stroke="#e2f0ff" stroke-opacity="0.5" stroke-width="1.1"/>
-    <ellipse cx="48" cy="17" rx="13" ry="2.6" fill="none" stroke="#cfe4ff" stroke-opacity="0.28" stroke-width="0.8"/>
+    <path d="M9,20 L9,16.5 M87,20 L87,16.5" stroke="#e2f0ff" stroke-opacity="0.5" stroke-width="1.1"/>
+    <ellipse cx="48" cy="20" rx="39" ry="3.2" fill="none" stroke="#cfe4ff" stroke-opacity="0.26" stroke-width="0.8"/>
     
     <!-- Schraubdeckel aus Metall, vom Stoff ueberdeckt -->
-    <rect x="33.2" y="11.6" width="29.6" height="7.8" rx="1.6" fill="url(#gRing)"/>
-    <g stroke="#333a46" stroke-opacity="0.32" stroke-width="0.45">
-      <line x1="37" y1="12.5" x2="37" y2="18.6"/><line x1="41" y1="12.5" x2="41" y2="18.6"/>
-      <line x1="45" y1="12.5" x2="45" y2="18.6"/><line x1="49" y1="12.5" x2="49" y2="18.6"/>
-      <line x1="53" y1="12.5" x2="53" y2="18.6"/><line x1="57" y1="12.5" x2="57" y2="18.6"/>
-    </g>
-    <rect x="33.2" y="11.6" width="29.6" height="7.8" rx="1.6" fill="none"
+    <rect x="8" y="12.4" width="80" height="8.6" rx="2.2" fill="url(#gRing)"/>
+    <g stroke="#333a46" stroke-opacity="0.32" stroke-width="0.45"><line x1="14" y1="13.4" x2="14" y2="20.1"/><line x1="20" y1="13.4" x2="20" y2="20.1"/><line x1="26" y1="13.4" x2="26" y2="20.1"/><line x1="32" y1="13.4" x2="32" y2="20.1"/><line x1="38" y1="13.4" x2="38" y2="20.1"/><line x1="44" y1="13.4" x2="44" y2="20.1"/><line x1="50" y1="13.4" x2="50" y2="20.1"/><line x1="56" y1="13.4" x2="56" y2="20.1"/><line x1="62" y1="13.4" x2="62" y2="20.1"/><line x1="68" y1="13.4" x2="68" y2="20.1"/><line x1="74" y1="13.4" x2="74" y2="20.1"/><line x1="80" y1="13.4" x2="80" y2="20.1"/><line x1="86" y1="13.4" x2="86" y2="20.1"/></g>
+    <rect x="8" y="12.4" width="80" height="8.6" rx="2.2" fill="none"
           stroke="#2c323d" stroke-opacity="0.6" stroke-width="0.55"/>
-    <path d="M34.4,18.6 Q48,20.6 61.6,18.6" fill="none" stroke="#2c323d"
+    <path d="M9.5,20.4 Q48,23 86.5,20.4" fill="none" stroke="#2c323d"
           stroke-opacity="0.45" stroke-width="0.6"/>
 
     <!-- Stoffdeckel, rot-weiss kariert -->
-    <path id="cloth" d="M31,15.5 C30,6.5 38,2.5 48,2.5 C58,2.5 66,6.5 65,15.5
-                        q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0
-                        q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0
-                        q-2.2,2.6 -4.4,0 z" fill="url(#gingham)"/>
-    <path d="M31,15.5 C30,6.5 38,2.5 48,2.5 C58,2.5 66,6.5 65,15.5
-             q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0
-             q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0 q-2.2,2.6 -4.4,0
-             q-2.2,2.6 -4.4,0 z" fill="url(#gClothLight)"/>
+    <path id="cloth" d="M5.5,17.4 C5.0,7.2 22,2.2 48,2.2 C74,2.2 91.0,7.2 90.5,17.4 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 z" fill="url(#gingham)"/>
+    <path d="M5.5,17.4 C5.0,7.2 22,2.2 48,2.2 C74,2.2 91.0,7.2 90.5,17.4 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 q-3.86,2.9 -7.73,0 z" fill="url(#gClothLight)"/>
     <!-- Schnur -->
-    <path d="M32.5,12.2 Q48,15.4 63.5,12.2" fill="none" stroke="#8d7a52" stroke-width="1.5" stroke-linecap="round"/>
-    <path d="M32.5,11.7 Q48,14.9 63.5,11.7" fill="none" stroke="#c9b483" stroke-width="0.7" stroke-linecap="round"/>
-    <path d="M60,13.6 l3.6,3.2 M60,13.6 l1.2,4.2" fill="none" stroke="#b7a172" stroke-width="1" stroke-linecap="round"/>
+    <path d="M7,13.6 Q48,17.6 89,13.6" fill="none" stroke="#8d7a52" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M7,13.0 Q48,17.0 89,13.0" fill="none" stroke="#c9b483" stroke-width="0.7" stroke-linecap="round"/>
+    <path d="M79,15.4 l4,3.6 M79,15.4 l1.4,4.6" fill="none" stroke="#b7a172" stroke-width="1" stroke-linecap="round"/>
     </svg>  <h1>Moosgrund</h1>
   </header>
 
@@ -1270,6 +1266,14 @@ function kickNote(){
   const off = Math.round(-7 + (kickSettings().tiefe/100)*10);   // -7 .. +3 Halbtoene
   try{ return Tone.Frequency('C2').transpose(off).toNote(); }catch(e){ return 'C2'; }
 }
+let flashTimer=null, glasEl=null;
+function flashFireflies(){
+  if(!glasEl) glasEl = document.querySelector('.glas');
+  if(!glasEl) return;
+  glasEl.classList.add('kick');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(()=>glasEl.classList.remove('kick'), 110);
+}
 function triggerKick(time){
   const f = kickFreq();
   const k = kickSettings();
@@ -1298,7 +1302,10 @@ const hatOpen = new Tone.MetalSynth({envelope:{attack:0.001, decay:0.25, release
 hatOpen.connect(masterGain); hatOpen.volume.value = -20;
 
 function triggerDrum(key, time){
-  if(key==='kick')  triggerKick(time);
+  if(key==='kick'){
+    triggerKick(time);
+    Tone.Draw.schedule(flashFireflies, time);
+  }
   if(key==='snare'){
     if(drumSamplers.snare && drumReady) drumSamplers.snare.triggerAttackRelease('C2', 0.35, time);
     else snareNoise.triggerAttackRelease('16n',time);
@@ -1959,6 +1966,7 @@ document.getElementById('kTest').addEventListener('click', async ()=>{
   if(!audioReady) await unlockAudio();
   applyKick();
   triggerKick(Tone.now() + 0.02);
+  setTimeout(flashFireflies, 20);
 });
 function syncKickUI(){
   const k = kickSettings();
