@@ -1660,11 +1660,11 @@ const INSTRUMENTS = {
     voice:Tone.FMSynth, opts:{harmonicity:2.02, modulationIndex:2.4, oscillator:{type:'triangle'},
       envelope:{attack:0.006, decay:1.4, sustain:0.06, release:1.3},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.35, sustain:0, release:0.4}}},
-  harmonium:{label:'Harmonium', vol:-11, sample:{folder:'harmonium',
+  harmonium:{gehalten:true, label:'Harmonium', vol:-11, sample:{folder:'harmonium',
     notes:['C2','Fs2','C3','Fs3','C4','A4','C5']},
     voice:Tone.AMSynth, opts:{harmonicity:2.001, oscillator:{type:'sine'},
       envelope:{attack:0.06, decay:0.1, sustain:1, release:0.4}, modulation:{type:'sine'}}},
-  orgel:{label:'Orgel', vol:-13, sample:{folder:'organ',
+  orgel:{gehalten:true, label:'Orgel', vol:-13, sample:{folder:'organ',
     notes:['C2','Fs2','C3','Fs3','C4','Fs4','C5']},
     voice:Tone.AMSynth, opts:{harmonicity:2.001, oscillator:{type:'sine'},
       envelope:{attack:0.04, decay:0.06, sustain:1, release:0.22}, modulation:{type:'sine'}}},
@@ -1693,56 +1693,56 @@ const INSTRUMENTS = {
     voice:Tone.FMSynth, opts:{harmonicity:2.01, modulationIndex:1.8, oscillator:{type:'sine'},
       envelope:{attack:0.004, decay:1.8, sustain:0.02, release:1.6},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.004, decay:0.6, sustain:0, release:0.6}}},
-  violine:{label:'Violine', vol:-11, sample:{folder:'violin',
+  violine:{gehalten:true, label:'Violine', vol:-11, sample:{folder:'violin',
     notes:['G3','A3','C4','E4','G4','A4','C5','E5','G5']},
     voice:Tone.Synth, opts:{oscillator:{type:'fattriangle', count:3, spread:14},
       envelope:{attack:0.2, decay:0.4, sustain:0.8, release:1.2}}},
-  cello:{label:'Cello', vol:-10, sample:{folder:'cello',
+  cello:{gehalten:true, label:'Cello', vol:-10, sample:{folder:'cello',
     notes:['C2','E2','G2','C3','E3','G3','C4','E4','G4']},
     voice:Tone.Synth, opts:{oscillator:{type:'fattriangle', count:2, spread:9},
       envelope:{attack:0.13, decay:0.35, sustain:0.75, release:1.0}}},
-  kontrabass:{label:'Kontrabass', vol:-9, sample:{folder:'contrabass',
+  kontrabass:{gehalten:true, label:'Kontrabass', vol:-9, sample:{folder:'contrabass',
     notes:['C2','E2','A2','E3','B3']},
     voice:Tone.Synth, opts:{oscillator:{type:'fattriangle', count:2, spread:8},
       envelope:{attack:0.09, decay:0.4, sustain:0.6, release:0.9}}},
 
   /* ---- Blas ---- */
-  trompete:{label:'Trompete', vol:-13, sample:{folder:'trumpet',
+  trompete:{gehalten:true, label:'Trompete', vol:-13, sample:{folder:'trumpet',
     notes:['F3','A3','C4','Ds4','F4','G4','As4','F5','A5']},
     voice:Tone.FMSynth, opts:{harmonicity:1.005, modulationIndex:4.5, oscillator:{type:'triangle'},
       envelope:{attack:0.07, decay:0.25, sustain:0.7, release:0.4},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.09, decay:0.25, sustain:0.5, release:0.35}}},
-  posaune:{label:'Posaune', vol:-12, sample:{folder:'trombone',
+  posaune:{gehalten:true, label:'Posaune', vol:-12, sample:{folder:'trombone',
     notes:['As1','Ds2','Gs2','C3','Ds3','Gs3','C4','Ds4','F4']},
     voice:Tone.FMSynth, opts:{harmonicity:0.5, modulationIndex:3.6, oscillator:{type:'triangle'},
       envelope:{attack:0.1, decay:0.25, sustain:0.78, release:0.45},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.12, decay:0.25, sustain:0.55, release:0.35}}},
-  waldhorn:{label:'Waldhorn', vol:-12, sample:{folder:'french-horn',
+  waldhorn:{gehalten:true, label:'Waldhorn', vol:-12, sample:{folder:'french-horn',
     notes:['C2','G2','D3','F3','A3','C4','D5','F5']},
     voice:Tone.FMSynth, opts:{harmonicity:0.75, modulationIndex:3, oscillator:{type:'triangle'},
       envelope:{attack:0.12, decay:0.3, sustain:0.75, release:0.6},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.14, decay:0.3, sustain:0.5, release:0.4}}},
-  tuba:{label:'Tuba', vol:-12, sample:{folder:'tuba',
+  tuba:{gehalten:true, label:'Tuba', vol:-12, sample:{folder:'tuba',
     notes:['F1','As1','Ds2','F2','As2','D3','F3','As3','D4']},
     voice:Tone.FMSynth, opts:{harmonicity:0.5, modulationIndex:3, oscillator:{type:'sine'},
       envelope:{attack:0.12, decay:0.3, sustain:0.8, release:0.5},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.14, decay:0.3, sustain:0.5, release:0.4}}},
-  saxofon:{label:'Saxofon', vol:-14, sample:{folder:'saxophone',
+  saxofon:{gehalten:true, label:'Saxofon', vol:-14, sample:{folder:'saxophone',
     notes:['Cs3','E3','G3','As3','Cs4','E4','G4','As4','Cs5']},
     voice:Tone.FMSynth, opts:{harmonicity:1.5, modulationIndex:4, oscillator:{type:'triangle'},
       envelope:{attack:0.08, decay:0.2, sustain:0.78, release:0.4},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.2, sustain:0.55, release:0.3}}},
-  klarinette:{label:'Klarinette', vol:-13, sample:{folder:'clarinet',
+  klarinette:{gehalten:true, label:'Klarinette', vol:-13, sample:{folder:'clarinet',
     notes:['D3','F3','As3','D4','F4','As4','D5','F5','As5']},
     voice:Tone.FMSynth, opts:{harmonicity:3, modulationIndex:1.6, oscillator:{type:'sine'},
       envelope:{attack:0.08, decay:0.15, sustain:0.82, release:0.4},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.2, sustain:0.6, release:0.3}}},
-  fagott:{label:'Fagott', vol:-12, sample:{folder:'bassoon',
+  fagott:{gehalten:true, label:'Fagott', vol:-12, sample:{folder:'bassoon',
     notes:['G2','A2','C3','G3','A3','C4','E4','G4','A4']},
     voice:Tone.FMSynth, opts:{harmonicity:1.5, modulationIndex:3, oscillator:{type:'triangle'},
       envelope:{attack:0.09, decay:0.25, sustain:0.75, release:0.45},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.1, decay:0.25, sustain:0.5, release:0.35}}},
-  floete:{label:'Flöte', vol:-11, sample:{folder:'flute',
+  floete:{gehalten:true, label:'Flöte', vol:-11, sample:{folder:'flute',
     notes:['C4','E4','A4','C5','E5','A5','C6','E6']},
     voice:Tone.Synth, opts:{oscillator:{type:'sine'},
       envelope:{attack:0.13, decay:0.18, sustain:0.78, release:0.55}}},
@@ -1784,13 +1784,13 @@ const INSTRUMENTS = {
     voice:Tone.FMSynth, opts:{harmonicity:2.0, modulationIndex:2.6, oscillator:{type:'triangle'},
       envelope:{attack:0.004, decay:0.8, sustain:0.02, release:0.6},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.003, decay:0.3, sustain:0, release:0.3}}},
-  ziehharmonika:{label:'Ziehharmonika', vol:-11,
+  ziehharmonika:{gehalten:true, label:'Ziehharmonika', vol:-11,
     fx:{chorus:{frequency:0.9, delayTime:6, depth:0.55}},
     formant:[620,1500],
     sample:{folder:'harmonium', notes:['C2','Fs2','C3','Fs3','C4','A4','C5']},
     voice:Tone.AMSynth, opts:{harmonicity:2.002, oscillator:{type:'sawtooth'},
       envelope:{attack:0.05, decay:0.1, sustain:1, release:0.28}, modulation:{type:'sine'}}},
-  bandoneon:{label:'Bandoneon', vol:-11, shift:-5,
+  bandoneon:{gehalten:true, label:'Bandoneon', vol:-11, shift:-5,
     fx:{chorus:{frequency:0.5, delayTime:9, depth:0.35}},
     formant:[480,1200],
     sample:{folder:'harmonium', notes:['C2','Fs2','C3','Fs3','C4','A4','C5']},
@@ -1801,52 +1801,52 @@ const INSTRUMENTS = {
     voice:Tone.FMSynth, opts:{harmonicity:3.01, modulationIndex:4, oscillator:{type:'sine'},
       envelope:{attack:0.002, decay:0.8, sustain:0.01, release:0.7},
       modulation:{type:'sine'}, modulationEnvelope:{attack:0.002, decay:0.3, sustain:0, release:0.3}}},
-  duduk:{label:'Duduk', vol:-10, shift:-5, formant:[520,1150],
+  duduk:{gehalten:true, label:'Duduk', vol:-10, shift:-5, formant:[520,1150],
     sample:{folder:'clarinet', notes:['D3','F3','As3','D4','F4','As4','D5','F5','As5']},
     voice:Tone.FMSynth, opts:{harmonicity:2.0, modulationIndex:1.4, oscillator:{type:'sine'},
       envelope:{attack:0.11, decay:0.18, sustain:0.85, release:0.55}}},
-  zurna:{label:'Zurna', vol:-15, shift:7, formant:[980,2100],
+  zurna:{gehalten:true, label:'Zurna', vol:-15, shift:7, formant:[980,2100],
     sample:{folder:'saxophone', notes:['Cs3','E3','G3','As3','Cs4','E4','G4','As4','Cs5']},
     voice:Tone.FMSynth, opts:{harmonicity:1.5, modulationIndex:6, oscillator:{type:'sawtooth'},
       envelope:{attack:0.05, decay:0.15, sustain:0.85, release:0.3}}},
-  kaval:{label:'Kaval', vol:-11, shift:-2, formant:[700,1900],
+  kaval:{gehalten:true, label:'Kaval', vol:-11, shift:-2, formant:[700,1900],
     sample:{folder:'flute', notes:['C4','E4','A4','C5','E5','A5','C6','E6']},
     voice:Tone.Synth, opts:{oscillator:{type:'sine'},
       envelope:{attack:0.14, decay:0.2, sustain:0.78, release:0.6}}},
-  balkanblech:{label:'Balkanblech', vol:-14, formant:[1050,2200],
+  balkanblech:{gehalten:true, label:'Balkanblech', vol:-14, formant:[1050,2200],
     sample:{folder:'trumpet',
       notes:['F3','A3','C4','Ds4','F4','G4','As4','F5','A5']},
     voice:Tone.FMSynth, opts:{harmonicity:1.005, modulationIndex:5, oscillator:{type:'triangle'},
       envelope:{attack:0.05, decay:0.2, sustain:0.7, release:0.3}}},
 
   /* ---- Stimmen ---- */
-  stimme_aa:{label:'Frauenstimme Ah', vol:-9, sample:{src:'berklee', files:{
+  stimme_aa:{gehalten:true, label:'Frauenstimme Ah', vol:-9, sample:{src:'berklee', files:{
       'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3','Eb4':'femalevoice_aa_Eb4.mp3',
       'A4':'femalevoice_aa_A4.mp3','Db5':'femalevoice_aa_Db5.mp3','F5':'femalevoice_aa_F5.mp3',
       'A5':'femalevoice_aa_A5.mp3','C6':'femalevoice_aa_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.5, oscillator:{type:'sine'},
       envelope:{attack:0.3, decay:0.3, sustain:0.9, release:1.4}, modulation:{type:'sine'}}},
-  stimme_oo:{label:'Frauenstimme Oh', vol:-9, sample:{src:'berklee', files:{
+  stimme_oo:{gehalten:true, label:'Frauenstimme Oh', vol:-9, sample:{src:'berklee', files:{
       'A3':'femalevoice_oo_femalevoice_oo_A3.mp3','Db4':'femalevoice_oo_Db4.mp3',
       'A4':'femalevoice_oo_A4.mp3','Db5':'femalevoice_oo_Db5.mp3',
       'A5':'femalevoice_oo_A5.mp3','C6':'femalevoice_oo_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.2, oscillator:{type:'sine'},
       envelope:{attack:0.35, decay:0.3, sustain:0.9, release:1.6}, modulation:{type:'sine'}}},
-  stimme_uh:{label:'Frauenstimme Uh', vol:-7, formant:[325,700],
+  stimme_uh:{gehalten:true, label:'Frauenstimme Uh', vol:-7, formant:[325,700],
     sample:{src:'berklee', files:{
       'A3':'femalevoice_oo_femalevoice_oo_A3.mp3','Db4':'femalevoice_oo_Db4.mp3',
       'A4':'femalevoice_oo_A4.mp3','Db5':'femalevoice_oo_Db5.mp3',
       'A5':'femalevoice_oo_A5.mp3','C6':'femalevoice_oo_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.2, oscillator:{type:'sine'},
       envelope:{attack:0.35, decay:0.3, sustain:0.9, release:1.6}, modulation:{type:'sine'}}},
-  stimme_ih:{label:'Frauenstimme Ih', vol:-6, formant:[350,2800],
+  stimme_ih:{gehalten:true, label:'Frauenstimme Ih', vol:-6, formant:[350,2800],
     sample:{src:'berklee', files:{
       'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3','Eb4':'femalevoice_aa_Eb4.mp3',
       'A4':'femalevoice_aa_A4.mp3','Db5':'femalevoice_aa_Db5.mp3','F5':'femalevoice_aa_F5.mp3',
       'A5':'femalevoice_aa_A5.mp3','C6':'femalevoice_aa_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.8, oscillator:{type:'sine'},
       envelope:{attack:0.28, decay:0.3, sustain:0.9, release:1.3}, modulation:{type:'sine'}}},
-  jodel:{label:'Jodelstimme', vol:-8, register:72,
+  jodel:{gehalten:true, label:'Jodelstimme', vol:-8, register:72,
     fx:{vibrato:{frequency:5.2, depth:0.09, type:'sine'}},
     brust:{vol:-6, formant:[730,1150], files:{
       'A3':'femalevoice_aa_A3.mp3','Db4':'femalevoice_aa_Db4.mp3',
@@ -1857,24 +1857,24 @@ const INSTRUMENTS = {
       'C6':'femalevoice_oo_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:1.5, oscillator:{type:'sine'},
       envelope:{attack:0.02, decay:0.2, sustain:0.8, release:0.3}, modulation:{type:'sine'}}},
-  frauenchor:{label:'Frauenchor', vol:-11, sample:{src:'berklee', files:{
+  frauenchor:{gehalten:true, label:'Frauenchor', vol:-11, sample:{src:'berklee', files:{
       'A3':'femalevoices_aa2_A3.mp3','C#4':'femalevoices_aa2_C#4.mp3',
       'A4':'femalevoices_aa2_A4.mp3','C5':'femalevoices_aa2_C5.mp3',
       'F#5':'femalevoices_aa2_F#5.mp3','A5':'femalevoices_aa2_A5.mp3',
       'C6':'femalevoices_aa2_C6.mp3'}},
     voice:Tone.AMSynth, opts:{harmonicity:2, oscillator:{type:'sine'},
       envelope:{attack:0.45, decay:0.35, sustain:0.9, release:1.8}, modulation:{type:'triangle'}}},
-  kinderchor:{label:'Kinderchor', vol:-9, choir:true, shift:12,
+  kinderchor:{gehalten:true, label:'Kinderchor', vol:-9, choir:true, shift:12,
     voice:Tone.AMSynth, opts:{harmonicity:1.002, oscillator:{type:'fatsine', count:4, spread:22},
       envelope:{attack:0.35, decay:0.5, sustain:0.88, release:2.2},
       modulation:{type:'sine'},
       modulationEnvelope:{attack:0.5, decay:0.4, sustain:0.8, release:1.6}}},
 
   /* ---- Synth ---- */
-  lead:{label:'Lead', vol:-16,
+  lead:{gehalten:true, label:'Lead', vol:-16,
     voice:Tone.Synth, opts:{oscillator:{type:'square'},
       envelope:{attack:0.01, decay:0.2, sustain:0.6, release:0.4}}},
-  pad:{label:'Pad', vol:-19,
+  pad:{gehalten:true, label:'Pad', vol:-19,
     voice:Tone.Synth, opts:{oscillator:{type:'fatsine', count:3, spread:30},
       envelope:{attack:0.6, decay:0.4, sustain:0.9, release:2.2}}},
   tropfen:{label:'Tropfen', vol:-14,
@@ -1937,11 +1937,24 @@ function playLayerNote(layer, note, dur, time, vel){
     const teil = tonZuMidi(n) >= v.def.register ? v.kopf : v.brust;
     if(teil && teil.sampler && teil.ready){
       teil.sampler.triggerAttackRelease(n, dur, time, vel);
+      if((typeof dur === 'number') && dur > 0.42){
+        v.synth.triggerAttackRelease(n, dur, time, vel * 0.42);
+      }
       return;
     }
   }
-  if(v.sampler && v.ready) v.sampler.triggerAttackRelease(n, dur, time, vel);
-  else v.synth.triggerAttackRelease(n, dur, time, vel);
+  const lang = (typeof dur === 'number') && dur > 0.42;
+
+  if(v.sampler && v.ready){
+    v.sampler.triggerAttackRelease(n, dur, time, vel);
+    /* Aufnahmen haben eine feste Laenge. Bei gehaltenen Instrumenten legt der
+       Synth den Ton leise darunter, damit er nicht mitten im Klang abreisst. */
+    if(lang && v.def.gehalten){
+      v.synth.triggerAttackRelease(n, dur, time, vel * 0.42);
+    }
+    return;
+  }
+  v.synth.triggerAttackRelease(n, dur, time, vel);
 }
 
 function updateLoadHint(){
