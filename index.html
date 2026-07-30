@@ -2336,6 +2336,28 @@ document.querySelectorAll('.tab').forEach(btn=>{
 /* ==========================================================
    SCENE CHIPS
    ========================================================== */
+/* Szene verdoppeln – neue Kennungen, damit Original und Kopie
+   getrennte Klangketten behalten. */
+function copyScene(){
+  const quelle = editScene();
+  if(!quelle) return;
+  const k = JSON.parse(JSON.stringify(quelle));
+  k.id = 's'+uid();
+  (k.layers||[]).forEach(L=>{ L.id = 'L'+uid(); });
+
+  const basis = quelle.name.replace(/ Kopie( \(\d+\))?$/, '');
+  let name = basis + ' Kopie', n = 2;
+  while(song.scenes.some(x=>x.name===name)) name = basis + ' Kopie (' + (n++) + ')';
+  k.name = name;
+
+  song.scenes.splice(song.scenes.indexOf(quelle)+1, 0, k);
+  editSceneId = k.id;
+  editLayerId = (k.layers && k.layers[0]) ? k.layers[0].id : null;
+  markDirty();
+  refreshAllEditors();
+  renderArrangement();
+}
+
 function renderSceneChips(){
   ['scenesBeats','scenesBass','scenesMel'].forEach(cid=>{
     const el=document.getElementById(cid); el.innerHTML='';
@@ -2361,6 +2383,12 @@ function renderSceneChips(){
       refreshAllEditors(); renderArrangement();
     });
     el.appendChild(add);
+
+    const kopie=document.createElement('button');
+    kopie.className='scene-chip'; kopie.textContent='⧉ Kopie';
+    kopie.title='Aktuelle Szene verdoppeln';
+    kopie.addEventListener('click', ()=>{ copyScene(); });
+    el.appendChild(kopie);
   });
 }
 /* lightweight per-tick highlight — no rebuild, no listener churn */
