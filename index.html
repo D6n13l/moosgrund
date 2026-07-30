@@ -535,6 +535,13 @@
   .arr-block{display:flex;flex-direction:column;gap:7px;padding:9px 11px;
     border:1px solid var(--edge-soft);border-radius:10px;background:transparent;}
   .arr-kopf{display:flex;align-items:center;gap:9px;width:100%;}
+  .ungenutzt{display:none;margin-top:12px;padding-top:10px;
+    border-top:1px solid var(--edge-soft);}
+  .ungenutzt.on{display:block;}
+  .ungenutzt .titel{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;
+    letter-spacing:0.14em;text-transform:uppercase;color:var(--led-amber);margin-bottom:8px;}
+  .ungenutzt .liste{display:flex;gap:6px;flex-wrap:wrap;}
+  .ungenutzt button{padding:6px 11px;font-size:0.7rem;}
   .arr-bild{width:100%;}
   .arr-bild .mp{width:100%;height:26px;display:block;opacity:0.9;}
   .arr-block.sounding{border-color:var(--honey);box-shadow:0 0 0 1px rgba(176,138,60,0.4);}
@@ -1066,6 +1073,7 @@
       </div>
       <div class="timeline" id="timeline"><div id="tlCursor" style="left:0"></div></div>
       <div class="arr-list" id="arrList"></div>
+      <div id="ungenutzt" class="ungenutzt"></div>
       <div class="btnrow even" style="margin-top:13px;">
         <button id="addBlockBtn">Abschnitt</button>
         <button id="fillSetBtn">6 Min füllen</button>
@@ -2382,6 +2390,13 @@ function copyScene(){
   k.name = name;
 
   song.scenes.splice(song.scenes.indexOf(quelle)+1, 0, k);
+
+  /* Im Set direkt hinter dem letzten Auftritt der Vorlage einsetzen. */
+  let letzterAuftritt = -1, takte = 8;
+  song.arrangement.forEach((b,i)=>{ if(b.sceneId===quelle.id){ letzterAuftritt=i; takte=b.bars; } });
+  if(letzterAuftritt >= 0) song.arrangement.splice(letzterAuftritt+1, 0, {sceneId:k.id, bars:takte});
+  else song.arrangement.push({sceneId:k.id, bars:takte});
+
   editSceneId = k.id;
   editLayerId = (k.layers && k.layers[0]) ? k.layers[0].id : null;
   markDirty();
@@ -2439,7 +2454,11 @@ function renderSceneChips(){
     add.className='scene-chip'; add.textContent='+ Szene';
     add.addEventListener('click', ()=>{
       const s=makeScene('Szene '+(song.scenes.length+1));
-      song.scenes.push(s); editSceneId=s.id; markDirty();
+      song.scenes.push(s);
+      /* gleich hinten ans Set anhaengen, sonst taucht sie dort nie auf */
+      const letzte = song.arrangement[song.arrangement.length-1];
+      song.arrangement.push({sceneId:s.id, bars:(letzte && letzte.bars) || 8});
+      editSceneId=s.id; markDirty();
       refreshAllEditors(); renderArrangement();
     });
     el.appendChild(add);
@@ -3147,6 +3166,31 @@ function renderArrangement(){
     const e=document.createElement('div'); e.className='empty';
     e.textContent='Noch keine Abschnitte. Über „Abschnitt anhängen“ das Stück aufbauen.';
     list.appendChild(e);
+  }
+
+  /* Szenen, die noch nirgends im Set stehen, sichtbar machen */
+  const box=document.getElementById('ungenutzt');
+  if(box){
+    const offen = song.scenes.filter(sc=>!song.arrangement.some(b=>b.sceneId===sc.id));
+    box.innerHTML='';
+    if(offen.length){
+      const t=document.createElement('div'); t.className='titel';
+      t.textContent='Noch nicht im Set'; box.appendChild(t);
+      const l=document.createElement('div'); l.className='liste';
+      offen.forEach(sc=>{
+        const b=document.createElement('button');
+        b.textContent='+ '+sc.name;
+        b.title='Szene hinten an das Set anhängen';
+        b.addEventListener('click', ()=>{
+          const letzte = song.arrangement[song.arrangement.length-1];
+          song.arrangement.push({sceneId:sc.id, bars:(letzte && letzte.bars) || 8});
+          markDirty(); renderArrangement();
+        });
+        l.appendChild(b);
+      });
+      box.appendChild(l);
+      box.classList.add('on');
+    } else box.classList.remove('on');
   }
 
   cacheArrEls();
