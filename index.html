@@ -488,27 +488,27 @@
   .label{width:60px;flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:0.62rem;
     letter-spacing:0.06em;color:var(--ink-faint);text-align:right;}
   .steps16{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;flex:1;}
-  .step{aspect-ratio:1;border-radius:50%;border:1px solid rgba(150,180,230,0.20);
+  .step{aspect-ratio:1;border-radius:50%;border:1px solid rgba(255,255,255,0.30);
     background:rgba(255,255,255,0.02);cursor:pointer;padding:0;min-width:0;
     transition:box-shadow .1s, background .1s;}
-  .step.beat{border-color:var(--ink-faint);}
+  .step.beat{border-color:rgba(255,255,255,0.62);}
   .step.lit{border-color:transparent;box-shadow:0 0 5px currentColor,0 0 11px currentColor;}
   .step.playhead{outline:1px solid rgba(232,236,250,0.75);outline-offset:2px;}
 
   /* ---------- piano roll ---------- */
-  .roll{border:1px solid var(--edge-soft);border-radius:12px;overflow:hidden;
-    background:rgba(255,255,255,0.025);}
-  .roll-row{display:grid;grid-template-columns:44px repeat(16,1fr);}
-  .roll-note{font-family:'IBM Plex Mono',monospace;font-size:0.57rem;color:var(--ink-faint);
-    padding:2px 6px;border-top:1px solid var(--edge-soft);
-    display:flex;align-items:center;justify-content:flex-end;}
-  .roll-note.root{color:var(--moss);font-weight:500;}
-  .roll-cell{aspect-ratio:1.6;border-top:1px solid var(--edge-soft);
-    border-left:1px solid var(--edge-soft);cursor:pointer;background:transparent;
-    padding:0;min-width:0;border-radius:3px;}
-  .roll-cell.beatline{border-left-color:var(--edge);}
-  .roll-cell.lit{box-shadow:0 0 5px currentColor,0 0 10px currentColor;}
-  .roll-cell.playcol{outline:1px solid rgba(232,236,250,0.5);outline-offset:-1px;}
+  .roll{border:none;border-radius:0;overflow:visible;background:transparent;}
+  .roll-row{display:grid;grid-template-columns:52px repeat(16,1fr);gap:3px;
+    align-items:center;margin-bottom:3px;}
+  .roll-note{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--ink-faint);
+    padding:0 7px 0 0;display:flex;align-items:center;justify-content:flex-end;
+    letter-spacing:0.04em;}
+  .roll-note.root{color:var(--ink-soft);font-weight:500;}
+  .roll-cell{aspect-ratio:1;border-radius:50%;border:1px solid rgba(255,255,255,0.30);
+    background:rgba(255,255,255,0.02);cursor:pointer;padding:0;min-width:0;
+    transition:box-shadow .1s, background .1s;}
+  .roll-cell.beatline{border-color:rgba(255,255,255,0.62);}
+  .roll-cell.lit{border-color:transparent;box-shadow:0 0 5px currentColor,0 0 11px currentColor;}
+  .roll-cell.playcol{outline:1px solid rgba(232,236,250,0.75);outline-offset:2px;}
 
   /* ---------- keyboard ---------- */
   .keys{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
