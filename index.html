@@ -95,11 +95,11 @@
       0 0 14px rgba(255,92,200,0.50),
       0 0 30px rgba(255,92,200,0.34),
       0 0 58px rgba(255,92,200,0.22),
-      0 0 104px rgba(255,92,200,0.13);
+      0 0 62px rgba(255,92,200,0.16);
     animation:
       neon-start 6.4s linear 1 both,
       neon-breath 7s ease-in-out 6.4s infinite,
-      neon-hue 44s linear 6.4s infinite;
+      neon-farbe 48s linear 6.4s infinite;
   }
   /* Einschalten: lange zoegern, zucken, dann stehen bleiben */
   @keyframes neon-start{
@@ -151,15 +151,20 @@
     88%  {opacity:0.92;}
     90%  {opacity:1;}
   }
-  /* sehr langsamer Farbwechsel */
-  @keyframes neon-hue{
-    from{filter:hue-rotate(0deg);}
-    to  {filter:hue-rotate(360deg);}
+  /* Farbwechsel nur auf der Roehre selbst – kein Filter, kein Neuzeichnen der Flaeche */
+  @keyframes neon-farbe{
+    0%   {-webkit-text-stroke-color:#ffe4f6;}
+    16%  {-webkit-text-stroke-color:#ffd9a8;}
+    33%  {-webkit-text-stroke-color:#f6ffb0;}
+    50%  {-webkit-text-stroke-color:#c2ffd6;}
+    66%  {-webkit-text-stroke-color:#b6f0ff;}
+    83%  {-webkit-text-stroke-color:#d8ccff;}
+    100% {-webkit-text-stroke-color:#ffe4f6;}
   }
   .glas{position:relative;flex:0 0 auto;
     width:clamp(60px,22vw,150px);height:auto;aspect-ratio:96/78;
     pointer-events:none;overflow:visible;
-    filter:drop-shadow(0 4px 9px rgba(0,0,0,0.55));}
+}
 
   /* Flugbahn: kurze Sprints, Schweben, Krabbeln an der Wand, Pausen */
   .glas .fly      {animation:flug 17s cubic-bezier(.42,0,.58,1) infinite;}
@@ -399,12 +404,7 @@
       0 0 16px rgba(255,92,200,0.28),
       0 0 34px rgba(255,92,200,0.15),
       inset 0 0 14px rgba(255,92,200,0.10);
-    animation:tube-hue 44s linear infinite, tube-zuck 9s ease-in-out infinite;}
-  @keyframes tube-hue{ from{filter:hue-rotate(0deg);} to{filter:hue-rotate(360deg);} }
-  @keyframes tube-zuck{
-    0%,100%{opacity:1;} 27%{opacity:0.94;} 29%{opacity:1;}
-    63%{opacity:0.90;} 65%{opacity:1;} 81%{opacity:0.96;} 83%{opacity:1;}
-  }
+    will-change:auto;}
   .transport{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
     background:transparent;border:none;border-radius:0;padding:0;}
   button{font-family:'IBM Plex Mono',monospace;font-weight:500;background:transparent;
@@ -666,7 +666,7 @@
     
     <!-- weiches Licht, das durch das Glas nach aussen dringt -->
     <g class="puls">
-      <ellipse cx="48" cy="46" rx="42" ry="26" fill="#ffce4d" opacity="0.10" filter="url(#bL)"/>
+      <ellipse cx="48" cy="46" rx="42" ry="26" fill="#ffce4d" opacity="0.10"/>
     </g>
     
     <g clip-path="url(#clipJar)">
@@ -675,22 +675,22 @@
     
       <!-- Reflex im dicken Glasboden, spiegelbildlich -->
       <g class="fly-base"><g class="puls">
-        <ellipse cx="48" cy="66" rx="13" ry="4" fill="url(#gSoft)" filter="url(#bM)"/>
+        <ellipse cx="48" cy="66" rx="13" ry="4" fill="url(#gSoft)"/>
       </g></g>
     
       <!-- Wandreflexe -->
       <g class="fly-l"><g class="puls">
-        <ellipse cx="12.5" cy="44" rx="2.6" ry="9" fill="url(#gSoft)" filter="url(#bS)"/>
+        <ellipse cx="12.5" cy="44" rx="2.6" ry="9" fill="url(#gSoft)"/>
       </g></g>
       <g class="fly-r"><g class="puls">
-        <ellipse cx="83.5" cy="44" rx="2.4" ry="8" fill="url(#gSoft)" filter="url(#bS)"/>
+        <ellipse cx="83.5" cy="44" rx="2.4" ry="8" fill="url(#gSoft)"/>
       </g></g>
     
       <!-- diffuser Lichtball + Tier -->
       <g class="fly">
         <g class="puls">
-          <ellipse cx="48" cy="42" rx="30" ry="21" fill="url(#gSoft)" opacity="0.55" filter="url(#bL)"/>
-          <ellipse cx="48" cy="42" rx="17" ry="13" fill="url(#gSoft)" filter="url(#bM)"/>
+          <ellipse cx="48" cy="42" rx="30" ry="21" fill="url(#gSoft)" opacity="0.55"/>
+          <ellipse cx="48" cy="42" rx="17" ry="13" fill="url(#gSoft)"/>
         </g>
         <!-- Kaefer: Kopf, Halsschild, Fluegeldecken, Leuchtorgan -->
         <g transform="rotate(14 48 42)">
@@ -711,15 +711,15 @@
     
       <!-- ===== zweites Tier ===== -->
       <g class="fly2-base"><g class="puls2">
-        <ellipse cx="62" cy="66" rx="9" ry="3" fill="url(#gSoft)" filter="url(#bM)"/>
+        <ellipse cx="62" cy="66" rx="9" ry="3" fill="url(#gSoft)"/>
       </g></g>
       <g class="fly2-r"><g class="puls2">
-        <ellipse cx="83.5" cy="40" rx="2.2" ry="7" fill="url(#gSoft)" filter="url(#bS)"/>
+        <ellipse cx="83.5" cy="40" rx="2.2" ry="7" fill="url(#gSoft)"/>
       </g></g>
       <g class="fly2">
         <g class="puls2">
-          <ellipse cx="62" cy="36" rx="22" ry="16" fill="url(#gSoft)" opacity="0.45" filter="url(#bL)"/>
-          <ellipse cx="62" cy="36" rx="12" ry="9.5" fill="url(#gSoft)" filter="url(#bM)"/>
+          <ellipse cx="62" cy="36" rx="22" ry="16" fill="url(#gSoft)" opacity="0.45"/>
+          <ellipse cx="62" cy="36" rx="12" ry="9.5" fill="url(#gSoft)"/>
         </g>
         <g transform="rotate(-11 62 36)">
           <ellipse cx="62" cy="33.2" rx="0.85" ry="0.7" fill="#1b1a16"/>
@@ -738,15 +738,15 @@
 
       <!-- ===== drittes Tier, tief und traege ===== -->
       <g class="fly3-base"><g class="puls3">
-        <ellipse cx="34" cy="66" rx="8" ry="2.6" fill="url(#gSoft)" filter="url(#bM)"/>
+        <ellipse cx="34" cy="66" rx="8" ry="2.6" fill="url(#gSoft)"/>
       </g></g>
       <g class="fly3-l"><g class="puls3">
-        <ellipse cx="12.5" cy="52" rx="2.2" ry="7" fill="url(#gSoft)" filter="url(#bS)"/>
+        <ellipse cx="12.5" cy="52" rx="2.2" ry="7" fill="url(#gSoft)"/>
       </g></g>
       <g class="fly3">
         <g class="puls3">
-          <ellipse cx="34" cy="54" rx="18" ry="13" fill="url(#gSoft)" opacity="0.4" filter="url(#bL)"/>
-          <ellipse cx="34" cy="54" rx="10" ry="8" fill="url(#gSoft)" filter="url(#bM)"/>
+          <ellipse cx="34" cy="54" rx="18" ry="13" fill="url(#gSoft)" opacity="0.4"/>
+          <ellipse cx="34" cy="54" rx="10" ry="8" fill="url(#gSoft)"/>
         </g>
         <g transform="rotate(7 34 54)">
           <ellipse cx="34" cy="51.6" rx="0.75" ry="0.62" fill="#1b1a16"/>
@@ -771,12 +771,12 @@
     
       <!-- Glanzlichter -->
       <path d="M20,26 Q14.5,34 14.2,46 L14.2,58" stroke="#ffffff" stroke-opacity="0.44"
-            stroke-width="2.4" stroke-linecap="round" fill="none" filter="url(#bS)"/>
+            stroke-width="2.4" stroke-linecap="round" fill="none"/>
       <path d="M24.5,27.5 Q20.5,34 20.4,44" stroke="#ffffff" stroke-opacity="0.20"
-            stroke-width="1.1" stroke-linecap="round" fill="none" filter="url(#bS)"/>
+            stroke-width="1.1" stroke-linecap="round" fill="none"/>
       <path d="M78,28 Q82,36 82.2,52" stroke="#ffffff" stroke-opacity="0.22"
-            stroke-width="1.5" stroke-linecap="round" fill="none" filter="url(#bS)"/>
-      <ellipse cx="30" cy="23.5" rx="6" ry="2" fill="#ffffff" opacity="0.16" filter="url(#bS)"/>
+            stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      <ellipse cx="30" cy="23.5" rx="6" ry="2" fill="#ffffff" opacity="0.16"/>
     </g>
     
     <!-- Glasumriss -->
@@ -1178,6 +1178,7 @@ document.getElementById('gateBtn').addEventListener('click', async ()=>{
 /* ==========================================================
    AUDIO GRAPH
    ========================================================== */
+try{ Tone.context.lookAhead = 0.2; }catch(e){}
 const masterLimiter = new Tone.Limiter(-1.2).toDestination();
 const masterGain = new Tone.Gain(Tone.dbToGain(-6)).connect(masterLimiter);
 const analyser = new Tone.Analyser('fft', 128);
@@ -1201,7 +1202,7 @@ const kickComp = new Tone.Compressor({threshold:-20, ratio:4,
   attack:0.004, release:0.14, knee:6}).connect(kickGain);
 const kickShelf = new Tone.Filter({type:'lowshelf', frequency:110, gain:0}).connect(kickComp);
 const kickHP  = new Tone.Filter({type:'highpass', frequency:24, rolloff:-24}).connect(kickShelf);
-const kickSat = new Tone.Distortion({distortion:0.06, oversample:'2x'}).connect(kickHP);
+const kickSat = new Tone.Distortion({distortion:0.06, oversample:'none'}).connect(kickHP);
 
 const kick = new Tone.MembraneSynth({pitchDecay:0.04, octaves:5,
   envelope:{attack:0.001, decay:0.3, sustain:0.01, release:0.3}});
@@ -1407,15 +1408,21 @@ function getChain(layerId){
   gain.connect(out); gain.connect(send);
   const blend  = new Tone.CrossFade(0).connect(gain);
   const nat    = new Tone.Gain(1).connect(blend.a);
-  const drive  = new Tone.Distortion({distortion:0.42, oversample:'2x'});
-  const bite   = new Tone.Filter({frequency:2400, type:'lowpass', Q:6});
-  const chorus = new Tone.Chorus({frequency:1.6, delayTime:3.2, depth:0.7}).start();
-  drive.chain(bite, chorus, blend.b);
-  const fxIn   = new Tone.Gain(1).connect(drive);
   const filter = new Tone.Filter(7200,'lowpass');
-  filter.connect(nat); filter.connect(fxIn);
-  const c = {filter, blend, gain, send, drive, bite, chorus, out, voices:{}, choir:null};
+  filter.connect(nat);
+  const c = {filter, blend, gain, send, out, voices:{}, choir:null,
+             drive:null, bite:null, chorus:null};
   layerChains[layerId] = c;
+  return c;
+}
+/* Die elektronische Kette entsteht erst beim ersten Aufdrehen des Reglers. */
+function ensureFX(c){
+  if(c.drive) return c;
+  c.drive  = new Tone.Distortion({distortion:0.3, oversample:'none'});
+  c.bite   = new Tone.Filter({frequency:2400, type:'lowpass', Q:6});
+  c.chorus = new Tone.Chorus({frequency:1.6, delayTime:3.2, depth:0.7}).start();
+  c.drive.chain(c.bite, c.chorus, c.blend.b);
+  c.filter.connect(c.drive);
   return c;
 }
 function disposeChain(layerId){
@@ -1427,7 +1434,7 @@ function disposeChain(layerId){
   });
   if(c.choir) Object.values(c.choir).forEach(n=>{ try{ n.dispose(); }catch(e){} });
   [c.filter,c.blend,c.gain,c.send,c.drive,c.bite,c.chorus,c.out]
-    .forEach(n=>{ try{ n.dispose(); }catch(e){} });
+    .forEach(n=>{ if(n){ try{ n.dispose(); }catch(e){} } });
   delete layerChains[layerId];
 }
 /* Vokalformanten fuer den Kinderchor, ebenfalls pro Ebene */
@@ -1757,11 +1764,16 @@ function applyLayerSettings(layer, force){
   c.send.gain.rampTo(layer.mute ? 0 : (st.verb/100), 0.05);
 
   const e = st.elec/100;
-  c.blend.fade.rampTo(e, 0.08);
-  c.drive.distortion = 0.12 + e*0.6;
-  c.bite.frequency.rampTo(1200 + e*5200, 0.08);
-  c.bite.Q.rampTo(1 + e*9, 0.08);
-  c.chorus.depth = 0.2 + e*0.6;
+  if(e > 0.001){
+    ensureFX(c);
+    c.blend.fade.rampTo(e, 0.08);
+    c.drive.distortion = 0.12 + e*0.6;
+    c.bite.frequency.rampTo(1200 + e*5200, 0.08);
+    c.bite.Q.rampTo(1 + e*9, 0.08);
+    c.chorus.depth = 0.2 + e*0.6;
+  } else if(c.drive){
+    c.blend.fade.rampTo(0, 0.08);
+  }
 }
 
 /* small velocity variation so repeated notes don't sound machine-stamped */
@@ -1969,7 +1981,9 @@ function abendsonne(){
     layers:[
       {inst:'gitarre', set:{vol:-5, verb:58, tone:56, att:5, rel:72}, notes:GIT},
       {inst:'floete', set:{vol:-11, verb:70, tone:60, att:18, rel:80},
-       notes:[[4,'A4'],[12,'C5']]}
+       notes:[[4,'A4'],[12,'C5']]},
+      {inst:'stimme_oo', set:{vol:-14, verb:80, tone:52, att:16, rel:88},
+       notes:[[6,'E4'],[8,'G4'],[10,'A4']]}
     ]});
 
   /* Gesang: absteigende Phrase, Ah und Oh wechseln sich ab */
@@ -1977,10 +1991,10 @@ function abendsonne(){
     drums:{ kick:PULS, hatc:RASSEL },
     bass:[[0,'A1'],[8,'F1']],
     layers:[
-      {inst:'stimme_aa', set:{vol:-4, verb:70, tone:62, att:8, rel:80},
-       notes:[[0,'E5'],[2,'D5'],[4,'C5'],[6,'A4']]},
-      {inst:'stimme_oo', set:{vol:-5, verb:74, tone:56, att:12, rel:86},
-       notes:[[8,'C5'],[10,'A4'],[13,'G4'],[15,'A4']]},
+      {inst:'stimme_aa', set:{vol:-4, verb:70, tone:62, att:6, rel:74},
+       notes:[[0,'A4'],[1,'C5'],[2,'D5'],[4,'E5'],[5,'D5'],[6,'C5'],[7,'D5']]},
+      {inst:'stimme_oo', set:{vol:-5, verb:74, tone:56, att:9, rel:82},
+       notes:[[8,'C5'],[9,'A4'],[10,'G4'],[12,'A4'],[13,'C5'],[15,'A4']]},
       {inst:'gitarre', set:{vol:-11, verb:56, tone:54, att:5, rel:70}, notes:GIT}
     ]});
 
@@ -1988,8 +2002,9 @@ function abendsonne(){
     drums:{ kick:PULS2, snare:RAHMEN, hatc:RASSEL },
     bass:[[0,'A1'],[6,'A1'],[8,'G1'],[14,'A1']],
     layers:[
-      {inst:'stimme_aa', set:{vol:-3, verb:64, tone:66, att:6, rel:74},
-       notes:[[0,'A5'],[2,'G5'],[4,'E5'],[7,'D5'],[10,'C5'],[14,'A4']]},
+      {inst:'stimme_aa', set:{vol:-3, verb:64, tone:66, att:5, rel:70},
+       notes:[[0,'A5'],[1,'G5'],[2,'E5'],[3,'G5'],[4,'E5'],[6,'D5'],[7,'C5'],
+              [8,'D5'],[10,'C5'],[11,'A4'],[12,'G4'],[14,'A4'],[15,'C5']]},
       {inst:'floete', set:{vol:-12, verb:66, tone:62, att:14, rel:72},
        notes:[[8,'E5'],[12,'D5']]},
       {inst:'gitarre', set:{vol:-10, verb:52, tone:56, att:5, rel:66}, notes:GIT}
@@ -1999,8 +2014,8 @@ function abendsonne(){
     drums:{},
     bass:[[0,'F1']],
     layers:[
-      {inst:'stimme_oo', set:{vol:-6, verb:84, tone:50, att:20, rel:92},
-       notes:[[0,'C5'],[6,'A4'],[12,'G4']]},
+      {inst:'stimme_oo', set:{vol:-6, verb:84, tone:50, att:14, rel:88},
+       notes:[[0,'C5'],[2,'D5'],[3,'C5'],[6,'A4'],[8,'G4'],[10,'A4'],[13,'C5']]},
       {inst:'gitarre', set:{vol:-9, verb:70, tone:50, att:6, rel:86},
        notes:[[0,'F3'],[8,'C4']]}
     ]});
@@ -2011,10 +2026,10 @@ function abendsonne(){
             hato:[0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,1,0] },
     bass:[[0,'A1'],[4,'A1'],[8,'F1'],[12,'G1']],
     layers:[
-      {inst:'frauenchor', set:{vol:-5, verb:68, tone:60, att:14, rel:82},
-       notes:[[0,'A4'],[4,'C5'],[8,'D5'],[12,'C5']]},
-      {inst:'stimme_aa', set:{vol:-9, verb:62, tone:64, att:8, rel:76},
-       notes:[[2,'E5'],[10,'A5']]},
+      {inst:'frauenchor', set:{vol:-5, verb:68, tone:60, att:12, rel:80},
+       notes:[[0,'A4'],[3,'C5'],[6,'D5'],[8,'E5'],[11,'D5'],[14,'C5']]},
+      {inst:'stimme_aa', set:{vol:-9, verb:62, tone:64, att:6, rel:72},
+       notes:[[1,'E5'],[2,'G5'],[4,'E5'],[7,'D5'],[9,'A5'],[10,'G5'],[12,'E5'],[15,'D5']]},
       {inst:'gitarre', set:{vol:-6, verb:48, tone:60, att:4, rel:64}, notes:GIT},
       {inst:'cello', set:{vol:-13, verb:52, tone:44, att:16, rel:74},
        notes:[[0,'A2'],[8,'F2']]}
@@ -2027,8 +2042,8 @@ function abendsonne(){
        notes:[[0,'E5'],[8,'A4']]},
       {inst:'gitarre', set:{vol:-9, verb:74, tone:48, att:6, rel:90},
        notes:[[0,'A3']]},
-      {inst:'stimme_oo', set:{vol:-13, verb:88, tone:46, att:26, rel:96},
-       notes:[[4,'A4']]}
+      {inst:'stimme_oo', set:{vol:-13, verb:88, tone:46, att:20, rel:94},
+       notes:[[4,'A4'],[7,'G4'],[10,'E4'],[14,'A4']]}
     ]});
 
   const sc=[intro,anfang,gesang,ruf,stille,drop,ausklang];
@@ -2751,6 +2766,7 @@ function renderArrangement(){
     list.appendChild(e);
   }
 
+  cacheArrEls();
   const bars=totalBars();
   document.getElementById('setBars').textContent = bars+' Takte';
   document.getElementById('setLength').textContent = fmt(setSeconds());
@@ -2776,8 +2792,11 @@ function updateTimelineCursor(t){
   const bars=totalBars(); if(!bars) return;
   document.getElementById('tlCursor').style.left = Math.min(100,(t/STEPS)/bars*100)+'%';
 }
+let arrEls = [], lastPosText = '';
+function cacheArrEls(){ arrEls = [...document.querySelectorAll('.arr-block')]; }
 function highlightBlock(idx, pct){
-  document.querySelectorAll('.arr-block').forEach(el=>{
+  if(!arrEls.length) cacheArrEls();
+  arrEls.forEach(el=>{
     const on = Number(el.dataset.idx)===idx;
     el.classList.toggle('sounding', on);
     const p = el.querySelector('.arr-prog');
@@ -2789,14 +2808,18 @@ function highlightBlock(idx, pct){
 function updatePosition(t, force){
   const el = document.getElementById('posReadout');
   if(!el) return;
-  if(!isPlaying && !force){ el.innerHTML='–'; highlightBlock(-1); return; }
+  if(!isPlaying && !force){
+    if(lastPosText !== '–'){ el.innerHTML='–'; lastPosText='–'; }
+    highlightBlock(-1); return;
+  }
 
   const bar  = Math.floor(t / STEPS);
   const beat = Math.floor((t % STEPS) / 4) + 1;
 
   if(playMode !== 'set'){
     const sc = editScene();
-    el.innerHTML = '<b>' + (sc ? sc.name : '') + '</b><span class="sep">·</span>Zählzeit ' + beat;
+    const txt = '<b>' + (sc ? sc.name : '') + '</b><span class="sep">·</span>Zählzeit ' + beat;
+    if(txt !== lastPosText){ el.innerHTML = txt; lastPosText = txt; }
     return;
   }
 
@@ -2815,11 +2838,12 @@ function updatePosition(t, force){
   const total   = setSeconds();
   const pct     = ((bar - acc) + (t % STEPS)/STEPS) / blk.bars * 100;
 
-  el.innerHTML =
+  const txt =
     'Abschnitt ' + (idx+1) + '/' + song.arrangement.length +
     '<span class="sep">·</span><b>' + (sc ? sc.name : '?') + '</b>' +
     '<span class="sep">·</span>Takt ' + barInBlock + '/' + blk.bars +
     '<span class="sep">·</span>' + fmt(elapsed) + ' / ' + fmt(total);
+  if(txt !== lastPosText){ el.innerHTML = txt; lastPosText = txt; }
 
   highlightBlock(idx, pct);
 }
