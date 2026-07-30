@@ -503,11 +503,16 @@
   .arr-time{font-family:'IBM Plex Mono',monospace;font-size:0.67rem;color:var(--bark);
     width:48px;text-align:right;}
   .arr-spacer{flex:1;}
-  .timeline{height:26px;border-radius:8px;overflow:hidden;display:flex;position:relative;
+  .timeline{height:34px;border-radius:8px;overflow:hidden;display:flex;position:relative;
+    cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;
     border:1px solid var(--edge-soft);margin:12px 0;background:rgba(255,255,255,0.04);}
   .tl-seg{height:100%;}
   #tlCursor{position:absolute;top:0;bottom:0;width:2px;background:#fff;z-index:2;
-    box-shadow:0 0 6px #fff;}
+    box-shadow:0 0 6px #fff;pointer-events:none;}
+  #tlCursor::after{content:'';position:absolute;left:-5px;top:-1px;width:12px;height:7px;
+    border-radius:2px;background:#fff;box-shadow:0 0 7px rgba(255,255,255,0.8);}
+  .timeline.scrubbing{box-shadow:0 0 0 1px rgba(255,176,58,0.6);}
+  .arr-block{cursor:pointer;}
   .totals{display:flex;justify-content:space-between;font-size:0.77rem;color:var(--ink-soft);}
 
   /* ---------- vocals ---------- */
@@ -1624,7 +1629,7 @@ Tone.Transport.scheduleRepeat((time)=>{
 
 function stopPlayback(){
   Tone.Transport.stop();
-  isPlaying=false; tick=0; currentStep=0; soundingSceneId=null;
+  isPlaying=false; tick=0; seeked=false; currentStep=0; soundingSceneId=null;
   const b=document.getElementById('playBtn');
   b.textContent='Start'; b.classList.remove('playing');
   updatePlayheads(); updateSceneChipHighlight(); highlightBlock(-1);
@@ -1635,7 +1640,9 @@ document.getElementById('playBtn').addEventListener('click', async ()=>{
   primeAudioSync();
   if(!isPlaying){
     if(!audioReady) await unlockAudio();
-    tick=0; Tone.Transport.start('+0.06'); isPlaying=true;
+    if(!seeked) tick=0;
+    seeked=false;
+    Tone.Transport.start('+0.06'); isPlaying=true;
     const b=document.getElementById('playBtn');
     b.textContent='Stopp'; b.classList.add('playing');
   } else stopPlayback();
@@ -1997,11 +2004,18 @@ const SEG_COLORS=['#7fd44a','#3fc9d6','#ffab2e','#e0559b','#9b7ade','#5d7c4a'];
 
 function renderArrangement(){
   const list=document.getElementById('arrList'); list.innerHTML='';
+  let running = 0;
   song.arrangement.forEach((blk,i)=>{
+    const startBar = running; running += blk.bars;
     const row=document.createElement('div');
     row.className='arr-block'; row.dataset.idx=i;
     const prog=document.createElement('div'); prog.className='arr-prog';
     row.appendChild(prog);
+    row.addEventListener('click', ev=>{
+      if(ev.target.closest('select,button')) return;
+      const bars = totalBars();
+      if(bars) seekToFraction(startBar / bars);
+    });
 
     const sel=document.createElement('select');
     song.scenes.forEach(s=>{
@@ -2076,10 +2090,10 @@ function highlightBlock(idx, pct){
 }
 
 /* Wo bin ich gerade? Szene, Takt im Abschnitt, verstrichene Zeit */
-function updatePosition(t){
+function updatePosition(t, force){
   const el = document.getElementById('posReadout');
   if(!el) return;
-  if(!isPlaying){ el.innerHTML='–'; highlightBlock(-1); return; }
+  if(!isPlaying && !force){ el.innerHTML='–'; highlightBlock(-1); return; }
 
   const bar  = Math.floor(t / STEPS);
   const beat = Math.floor((t % STEPS) / 4) + 1;
@@ -2113,6 +2127,57 @@ function updatePosition(t){
 
   highlightBlock(idx, pct);
 }
+/* ---- Spulen: in der Zeitleiste ziehen oder tippen ---- */
+let seeked = false;
+function seekToFraction(f){
+  const bars = totalBars();
+  if(!bars) return;
+  f = Math.max(0, Math.min(0.9999, f));
+  if(playMode !== 'set'){
+    playMode = 'set';
+    document.getElementById('modeBtn').textContent = 'Set';
+    document.getElementById('modeLabel').textContent = 'Set';
+  }
+  tick = Math.floor(f * bars * STEPS);
+  seeked = true;
+  currentStep = tick % STEPS;
+  const blk = sceneAtBar(Math.floor(tick / STEPS));
+  soundingSceneId = blk ? blk.sceneId : null;
+  updateTimelineCursor(tick);
+  updatePosition(tick, true);
+  updateSceneChipHighlight();
+  updatePlayheads();
+}
+(function makeTimelineScrubbable(){
+  const tl = document.getElementById('timeline');
+  if(!tl) return;
+  let dragging = false;
+  const frac = ev=>{
+    const r = tl.getBoundingClientRect();
+    return (ev.clientX - r.left) / r.width;
+  };
+  tl.addEventListener('pointerdown', ev=>{
+    dragging = true;
+    tl.classList.add('scrubbing');
+    tl.setPointerCapture(ev.pointerId);
+    seekToFraction(frac(ev));
+    ev.preventDefault();
+  });
+  tl.addEventListener('pointermove', ev=>{
+    if(!dragging) return;
+    seekToFraction(frac(ev));
+    ev.preventDefault();
+  });
+  const stop = ev=>{
+    if(!dragging) return;
+    dragging = false;
+    tl.classList.remove('scrubbing');
+    try{ tl.releasePointerCapture(ev.pointerId); }catch(e){}
+  };
+  tl.addEventListener('pointerup', stop);
+  tl.addEventListener('pointercancel', stop);
+})();
+
 document.getElementById('addBlockBtn').addEventListener('click', ()=>{
   song.arrangement.push({sceneId:editSceneId, bars:16}); markDirty(); renderArrangement();
 });
