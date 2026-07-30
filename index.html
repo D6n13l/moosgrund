@@ -74,16 +74,16 @@
 
   /* ---------- header ---------- */
   header{position:relative;margin-bottom:18px;padding-bottom:10px;overflow:visible;
-    display:flex;align-items:center;gap:10px;}
+    display:flex;align-items:center;gap:2px;}
   header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;
     background:var(--edge);}
   h1{
     font-family:'Norican','Kaushan Script',cursive;font-weight:400;
     font-size:clamp(2rem,12vw,4.6rem);
     text-transform:lowercase;
-    margin:0;line-height:1.3;letter-spacing:-0.012em;
-    transform:skewX(-14deg);transform-origin:left center;
-    padding:8px 2px 14px 2px;
+    margin:0;line-height:1.32;letter-spacing:-0.028em;
+    transform:skewX(-19deg);transform-origin:left center;
+    padding:8px 0 14px 1px;
     flex:1 1 auto;min-width:0;
     white-space:nowrap;overflow:visible;
     color:#ffd9f2;
@@ -332,6 +332,17 @@
     background:rgba(169,123,255,0.12);box-shadow:0 0 8px rgba(169,123,255,0.22);}
   .layer-chip.muted{opacity:0.42;}
   .layer-chip .lnum{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--ink-faint);}
+  .tipps{display:none;margin-top:12px;border-left:2px solid var(--led-amber);
+    padding:2px 0 2px 12px;}
+  .tipps.on{display:block;}
+  .tipps h4{margin:0 0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.62rem;
+    letter-spacing:0.14em;text-transform:uppercase;color:var(--led-amber);font-weight:500;}
+  .tipps ul{margin:0;padding:0;list-style:none;}
+  .tipps li{font-size:0.79rem;line-height:1.6;color:var(--ink-soft);margin-bottom:9px;
+    padding-left:14px;position:relative;}
+  .tipps li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;
+    border-radius:50%;background:var(--led-amber);box-shadow:0 0 5px var(--led-amber);}
+  .tipps li b{color:var(--ink);font-weight:700;}
   .voicebar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;}
   .voicebar select{padding:5px 8px;font-size:0.7rem;}
   .take-item{display:flex;align-items:center;gap:9px;padding:9px 11px;
@@ -427,7 +438,8 @@
     background:radial-gradient(ellipse 70% 45% at 50% 30%, rgba(255,92,200,0.12), transparent 65%),
       linear-gradient(178deg,#0a1024,#05080f);}
   #gate.hidden{display:none;}
-  #gate h2{font-family:'Norican','Kaushan Script',cursive;font-weight:400;font-size:3rem;margin:0;
+  #gate h2{font-family:'Norican','Kaushan Script',cursive;font-weight:400;font-size:2.6rem;margin:0;
+    transform:skewX(-19deg);letter-spacing:-0.028em;
     color:#ffd9f2;text-shadow:0 0 8px rgba(255,92,200,0.6),0 0 24px rgba(255,92,200,0.35),
     0 0 55px rgba(255,92,200,0.2);}
   #gate p{color:var(--ink-soft);font-size:0.84rem;max-width:330px;line-height:1.65;margin:0;}
@@ -807,7 +819,7 @@
       <button id="playBtn" class="primary">Start</button>
       <div class="ctl"><span id="audioDot"></span><span id="modeLabel">Szene</span></div>
       <div class="ctl pos" id="posReadout">–</div>
-      <div class="ctl"><span>Tempo</span><input type="range" id="tempo" min="140" max="185" value="172"><span id="tempoVal">172</span></div>
+      <div class="ctl"><span>Tempo</span><input type="range" id="tempo" min="100" max="150" value="126"><span id="tempoVal">126</span></div>
       <div class="ctl"><span>Master</span><input type="range" id="master" min="-30" max="0" value="-6"></div>
     </div>
   </div>
@@ -846,6 +858,11 @@
         <span>Sub <input type="range" id="kSub" min="0" max="100" value="35"></span>
         <button id="kTest" class="mini">Testschlag</button>
       </div>
+
+      <div class="btnrow" style="margin-top:14px;">
+        <button id="tippBtn" class="primary">Vorschläge</button>
+      </div>
+      <div id="tippBox" class="tipps"></div>
 
       <div class="voicebar">
         <span class="ctl">Aufnahme
@@ -1195,7 +1212,7 @@ let drumReady = false, drumFailed = false;
 async function findDrumBase(){
   for(const b of DRUM_BASES){
     try{
-      const r = await fetch(b + 'acoustic-kit/kick.mp3', {mode:'cors'});
+      const r = await fetch(b + 'Techno/kick.mp3', {mode:'cors'});
       if(r.ok){
         const buf = await r.arrayBuffer();
         if(buf.byteLength > 1000){ DRUM_BASE = b; break; }
@@ -1727,13 +1744,121 @@ function makeScene(name, preset){
 }
 function blankSong(){
   const s = makeScene('Szene 1');
-  return {id:'p'+uid(), name:'Neues Set', bpm:172, kick:Object.assign({}, KICK_DEFAULT), kit:'acoustic-kit',
+  return {id:'p'+uid(), name:'Neues Set', bpm:126, kick:Object.assign({}, KICK_DEFAULT), kit:'Techno',
           scenes:[s], arrangement:[{sceneId:s.id, bars:16}]};
 }
 function demoSong(){
-  const a=makeScene('Intro','intro'), b=makeScene('Drop','drop'), c=makeScene('Break','break');
-  return {id:'p'+uid(), name:'Erstes Set', bpm:172, kick:Object.assign({}, KICK_DEFAULT), kit:'acoustic-kit', scenes:[a,b,c],
-    arrangement:[{sceneId:a.id,bars:16},{sceneId:b.id,bars:32},{sceneId:c.id,bars:16},{sceneId:b.id,bars:32}]};
+  const S = (name, def)=>{
+    const sc = {id:'s'+uid(), name, drums:emptyDrums(),
+      bass:new Array(16).fill(null), voice:new Array(16).fill(0),
+      voiceTake:null, voiceEvery:1, layers:[]};
+    Object.assign(sc.drums, def.drums||{});
+    if(def.bass) def.bass.forEach(([i,n])=> sc.bass[i]=n);
+    (def.layers||[]).forEach(L=>{
+      const lay = newLayer(L.inst);
+      Object.assign(lay.settings, L.set||{});
+      (L.notes||[]).forEach(([i,n])=> lay.mel[i]=n);
+      sc.layers.push(lay);
+    });
+    if(!sc.layers.length) sc.layers.push(newLayer('violine'));
+    return sc;
+  };
+
+  const HAT_OFF  = [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0];
+  const HAT_16   = [1,0,1,0, 1,0,1,1, 1,0,1,0, 1,0,1,1];
+  const FOUR     = [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0];
+  const CLAP     = [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0];
+
+  /* 1 – Intro: nur Fläche und eine lange Violinenlinie */
+  const intro = S('Intro', {
+    drums:{ hatc:[0,0,1,0, 0,0,0,0, 0,0,1,0, 0,0,0,0] },
+    layers:[
+      {inst:'violine', set:{vol:-6, verb:58, tone:58, att:38, rel:78},
+       notes:[[0,'E4'],[8,'B3'],[12,'G4']]},
+      {inst:'pad', set:{vol:-13, verb:64, tone:44, att:66, rel:88},
+       notes:[[0,'E3'],[8,'B3']]}
+    ]});
+
+  /* 2 – Aufbau: Puls kommt dazu */
+  const auf1 = S('Aufbau', {
+    drums:{ kick:FOUR, hatc:HAT_OFF },
+    bass:[[2,'E1'],[6,'E1'],[10,'E1'],[14,'G1']],
+    layers:[
+      {inst:'violine', set:{vol:-7, verb:48, tone:62, att:26, rel:66},
+       notes:[[0,'E4'],[6,'D4'],[10,'B3'],[14,'G4']]},
+      {inst:'pad', set:{vol:-15, verb:58, tone:46, att:60, rel:84},
+       notes:[[0,'E3']]}
+    ]});
+
+  /* 3 – Spannung: dichter, steigende Linie */
+  const auf2 = S('Spannung', {
+    drums:{ kick:FOUR, snare:CLAP, hatc:HAT_OFF,
+            hato:[0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,1,0] },
+    bass:[[2,'E1'],[6,'E1'],[10,'G1'],[14,'A1']],
+    layers:[
+      {inst:'violine', set:{vol:-5, verb:42, tone:68, att:16, rel:58},
+       notes:[[0,'E4'],[4,'G4'],[8,'A4'],[11,'B4'],[14,'A4']]},
+      {inst:'lead', set:{vol:-17, verb:40, tone:70, elec:35, att:8, rel:40},
+       notes:[[2,'B3'],[6,'B3'],[10,'D4'],[14,'E4']]}
+    ]});
+
+  /* 4 – Break: alles weg bis auf die Violine */
+  const brk = S('Break', {
+    drums:{},
+    bass:[[0,'E1']],
+    layers:[
+      {inst:'violine', set:{vol:-3, verb:70, tone:60, att:22, rel:86},
+       notes:[[0,'B4'],[3,'A4'],[6,'G4'],[10,'F#4'],[13,'E4']]},
+      {inst:'kinderchor', set:{vol:-14, verb:76, tone:52, att:60, rel:90},
+       notes:[[0,'E3'],[8,'G3']]}
+    ]});
+
+  /* 5 – Drop: volle Breite */
+  const drop = S('Drop', {
+    drums:{ kick:FOUR, snare:CLAP, hatc:HAT_16,
+            hato:[0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,1,0] },
+    bass:[[2,'E1'],[6,'E1'],[10,'E1'],[14,'D2'],[7,'G1'],[15,'B1']],
+    layers:[
+      {inst:'violine', set:{vol:-2, verb:36, tone:74, att:6, rel:48},
+       notes:[[0,'E4'],[2,'B4'],[4,'G4'],[6,'A4'],[8,'E5'],[10,'B4'],[12,'G4'],[14,'A4']]},
+      {inst:'lead', set:{vol:-12, verb:30, tone:78, elec:58, att:4, rel:34},
+       notes:[[0,'E3'],[4,'G3'],[8,'E3'],[12,'D4']]},
+      {inst:'cello', set:{vol:-11, verb:34, tone:50, att:18, rel:60},
+       notes:[[0,'E3'],[8,'G3']]}
+    ]});
+
+  /* 6 – Groove: gleicher Beat, luftigere Melodie */
+  const groove = S('Groove', {
+    drums:{ kick:FOUR, snare:CLAP, hatc:HAT_OFF,
+            hato:[0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,1,0] },
+    bass:[[2,'E1'],[6,'E1'],[10,'G1'],[14,'E1']],
+    layers:[
+      {inst:'violine', set:{vol:-6, verb:44, tone:66, att:12, rel:56},
+       notes:[[0,'B4'],[6,'G4'],[12,'E4']]},
+      {inst:'marimba', set:{vol:-13, verb:44, tone:72, att:2, rel:40},
+       notes:[[3,'E4'],[7,'G4'],[11,'B4'],[15,'A4']]}
+    ]});
+
+  /* 7 – Outro */
+  const outro = S('Outro', {
+    drums:{ hatc:[0,0,1,0, 0,0,0,0, 0,0,1,0, 0,0,0,0] },
+    layers:[
+      {inst:'violine', set:{vol:-8, verb:72, tone:54, att:34, rel:90},
+       notes:[[0,'E4'],[8,'B3']]}
+    ]});
+
+  const sc = [intro, auf1, auf2, brk, drop, groove, outro];
+  const A = (x,b)=>({sceneId:x.id, bars:b});
+  return {
+    id:'p'+uid(), name:'Sommernacht', bpm:126,
+    kick:Object.assign({}, KICK_DEFAULT), kit:'Techno',
+    scenes:sc,
+    arrangement:[
+      A(intro,16), A(auf1,16), A(auf2,16), A(brk,8),
+      A(drop,32), A(groove,16), A(auf2,8), A(brk,8),
+      A(drop,32), A(outro,16)
+    ]
+  };
 }
 
 let song = null;
@@ -1978,6 +2103,151 @@ function syncKickUI(){
   document.getElementById('kHz').textContent =
     (drumReady ? (off>0?'+':'') + off + ' HT' : Math.round(kickFreq()) + ' Hz');
 }
+
+/* ==========================================================
+   Ratgeber: prueft die Szene auf Rhythmus, Bass und Melodie
+   ========================================================== */
+const HALBTON = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
+function midiOf(n){
+  const m = /^([A-G]#?)(\d)$/.exec(n||'');
+  if(!m) return null;
+  return HALBTON[m[1]] + (Number(m[2])+1)*12;
+}
+function stepsOf(arr){ const o=[]; arr.forEach((v,i)=>{ if(v) o.push(i); }); return o; }
+function melSteps(mel){ const o=[]; mel.forEach((v,i)=>{ if(v) o.push(i); }); return o; }
+
+function analyseScene(sc){
+  const t = [];              // {p:Prioritaet, s:Text}
+  const d = sc.drums;
+  const kick  = stepsOf(d.kick);
+  const snare = stepsOf(d.snare);
+  const hatc  = stepsOf(d.hatc);
+  const hato  = stepsOf(d.hato);
+  const bass  = melSteps(sc.bass);
+  const layers = sc.layers || [];
+  const alleNoten = layers.reduce((a,L)=>a + melSteps(L.mel).length, 0);
+
+  /* --- Rhythmus --- */
+  const vierViertel = [0,4,8,12].every(i=>d.kick[i]);
+  if(!kick.length){
+    t.push({p:1, s:'Ohne Kick wirkt die Szene als <b>Break</b> – genau richtig kurz vor einem Drop. Soll sie tragen, setz die Kick auf 1, 5, 9 und 13.'});
+  } else if(!vierViertel){
+    t.push({p:1, s:'Im Electro trägt der durchgehende Puls: <b>Kick auf 1, 5, 9 und 13</b> gibt der Szene ihren Boden.'});
+  } else if(kick.length > 6){
+    t.push({p:3, s:'Sehr viele Kicks. Der gleichmäßige Viervierteltakt wirkt stärker, wenn dazwischen Luft bleibt.'});
+  }
+  if(vierViertel && !d.kick[15] && kick.length<=5){
+    t.push({p:4, s:'Ein <b>zusätzlicher Kick auf Schritt 15</b> zieht als Auftakt in den nächsten Takt.'});
+  }
+  if(kick.length && !snare.length){
+    t.push({p:2, s:'Der Backbeat fehlt. Eine <b>Snare oder Clap auf 5 und 13</b> hält den Takt zusammen.'});
+  } else if(snare.length && !(d.snare[4] && d.snare[12])){
+    t.push({p:3, s:'Die Snare sitzt neben dem Backbeat. Auf <b>5 und 13</b> greift sie am stärksten.'});
+  }
+  if(!hatc.length){
+    t.push({p:2, s:'<b>Offbeat-Hi-Hats auf 3, 7, 11 und 15</b> erzeugen den typischen Vorwärtszug im Electro.'});
+  } else {
+    const offbeat = hatc.filter(i=>i%4===2).length;
+    if(offbeat === 0 && kick.length){
+      t.push({p:2, s:'Die Hi-Hats liegen auf den Zählzeiten und verschmelzen mit der Kick. <b>Zwischen die Kicks gesetzt</b> entsteht der Schub.'});
+    }
+  }
+  if(kick.length && !hato.length){
+    t.push({p:4, s:'Eine <b>offene Hi-Hat auf Schritt 15</b> kündigt den nächsten Takt an und öffnet den Groove.'});
+  }
+  hato.forEach(i=>{ if(d.kick[i]) t.push({p:4, s:'Offene Hi-Hat und Kick auf demselben Schritt verwischen einander – <b>einen Schritt versetzt</b> hört man beide.'}); });
+
+  /* --- Bass --- */
+  if(!bass.length && kick.length){
+    t.push({p:2, s:'Eine Basslinie <b>auf den Offbeats 3, 7, 11 und 15</b> ist das Rückgrat der meisten Electro-Stücke.'});
+  }
+  const kollision = bass.filter(i=>d.kick[i]);
+  if(kollision.length >= 2){
+    t.push({p:1, s:'Bass und Kick treffen sich auf ' + kollision.length + ' Schritten und kämpfen um den Tiefbass. <b>Versetz den Bass auf die Achtel dazwischen</b> – so bleibt die Kick sauber.'});
+  }
+  if(bass.length > 8){
+    t.push({p:3, s:'Sehr viele Basstöne. Eine <b>kurze, wiederholte Figur</b> trägt im Electro weiter als eine durchlaufende Linie.'});
+  }
+  if(bass.length && !(sc.bass[bass[0]]||'').startsWith('E')){
+    t.push({p:4, s:'Die Szene steht in e-moll. Ein <b>E als erster Basston</b> verankert die Harmonie hörbar.'});
+  }
+
+  /* --- Melodie --- */
+  if(!alleNoten){
+    t.push({p:2, s:'Die Melodie ist leer. Schon <b>drei bis vier Töne</b> pro Takt geben einer Szene ein Gesicht.'});
+  }
+  layers.forEach((L,li)=>{
+    const st = melSteps(L.mel);
+    if(!st.length) return;
+    const nr = 'Ebene ' + (li+1);
+    if(st.length > 9){
+      t.push({p:3, s:nr + ' ist sehr dicht. <b>Pausen lassen</b> – der Beat braucht Platz zum Atmen.'});
+    }
+    if(st.length > 2 && st.every(i=>i%4===0)){
+      t.push({p:3, s:nr + ' liegt vollständig auf den Zählzeiten. <b>Einen Ton auf ein Sechzehntel dazwischen schieben</b> bringt Synkope und Leben.'});
+    }
+    const midis = st.map(i=>midiOf(L.mel[i])).filter(x=>x!==null);
+    let spruenge = 0;
+    for(let i=1;i<midis.length;i++) if(Math.abs(midis[i]-midis[i-1]) > 7) spruenge++;
+    if(spruenge >= 2){
+      t.push({p:4, s:nr + ' springt mehrfach weit. <b>Schrittweise Bewegung dazwischen</b> macht die Linie sangbarer.'});
+    }
+    const letzter = L.mel[st[st.length-1]] || '';
+    if(st.length >= 3 && !/^(E|G|B)/.test(letzter)){
+      t.push({p:4, s:nr + ' endet auf ' + letzter + '. Ein <b>Schlusston auf E, G oder H</b> lässt die Phrase zur Ruhe kommen.'});
+    }
+    if(midis.length){
+      const spanne = Math.max(...midis) - Math.min(...midis);
+      if(spanne < 3 && st.length > 3){
+        t.push({p:4, s:nr + ' bewegt sich kaum. <b>Ein Ton eine Quinte höher</b> setzt einen Höhepunkt.'});
+      }
+    }
+  });
+  if(layers.length === 1 && alleNoten){
+    t.push({p:3, s:'Eine <b>zweite Ebene eine Oktave höher</b> mit nur zwei, drei Tönen legt Glanz über die Melodie.'});
+  }
+  for(let i=0;i<layers.length;i++){
+    for(let j=i+1;j<layers.length;j++){
+      if(layers[i].instrument === layers[j].instrument){
+        t.push({p:3, s:'Ebene ' + (i+1) + ' und ' + (j+1) + ' nutzen dasselbe Instrument und verdecken sich. <b>Anderes Instrument oder andere Oktave</b> schafft Trennung.'});
+      }
+      const gleich = [];
+      for(let k=0;k<16;k++) if(layers[i].mel[k] && layers[i].mel[k]===layers[j].mel[k]) gleich.push(k+1);
+      if(gleich.length >= 2){
+        t.push({p:3, s:'Ebene ' + (i+1) + ' und ' + (j+1) + ' spielen mehrfach denselben Ton. <b>Eine Oktave versetzen</b>, dann ergänzen sie sich statt sich zu doppeln.'});
+      }
+    }
+  }
+
+  /* --- Stimme --- */
+  const voice = stepsOf(sc.voice || []);
+  if(voice.some(i=>d.kick[i])){
+    t.push({p:4, s:'Die Stimme startet genau auf der Kick. <b>Einen Schritt später</b> bleiben beide verständlich.'});
+  }
+
+  /* --- Gesamteindruck --- */
+  const dichte = kick.length + snare.length + hatc.length + bass.length + alleNoten;
+  if(dichte > 34){
+    t.push({p:2, s:'Die Szene ist sehr voll – als <b>Drop</b> genau richtig. Damit sie wirkt, sollte davor eine deutlich ruhigere Szene stehen.'});
+  } else if(dichte < 6 && kick.length){
+    t.push({p:3, s:'Noch sehr sparsam. Als <b>Intro oder Übergang</b> gut, für eine tragende Szene fehlt eine Gegenstimme.'});
+  }
+
+  t.sort((a,b)=>a.p-b.p || Math.random()-0.5);
+  return t.slice(0,6).map(x=>x.s);
+}
+
+document.getElementById('tippBtn').addEventListener('click', ()=>{
+  const box = document.getElementById('tippBox');
+  const sc = editScene();
+  if(!sc) return;
+  const tipps = analyseScene(sc);
+  const liste = tipps.length
+    ? '<ul>' + tipps.map(x=>'<li>'+x+'</li>').join('') + '</ul>'
+    : '<ul><li>Rhythmus, Bass und Melodie greifen sauber ineinander. Nichts zu bemängeln – bau darauf auf.</li></ul>';
+  box.innerHTML = '<h4>Zu „' + sc.name + '"</h4>' + liste;
+  box.classList.add('on');
+});
 
 document.getElementById('sceneTake').addEventListener('change', e=>{
   editScene().voiceTake = e.target.value || null;
@@ -2640,7 +2910,7 @@ function loadSongInto(obj){
     if(s.voiceTake===undefined) s.voiceTake = null;
   });
   if(!song.kick) song.kick = Object.assign({}, KICK_DEFAULT);
-  if(!song.kit || !DRUM_KITS.some(k=>k.id===song.kit)) song.kit = 'acoustic-kit';
+  if(!song.kit || !DRUM_KITS.some(k=>k.id===song.kit)) song.kit = 'Techno';
   editSceneId = song.scenes[0].id;
   document.getElementById('projectName').value = song.name;
   document.getElementById('tempo').value = song.bpm;
@@ -3171,8 +3441,8 @@ function fitTitle(){
   if(!h || !header) return;
   const jar = header.querySelector('.glas');
   const styles = getComputedStyle(header);
-  const gap = parseFloat(styles.gap) || 10;
-  const avail = header.clientWidth - (jar ? jar.offsetWidth : 0) - gap - 4;
+  const gap = parseFloat(styles.gap) || 2;
+  const avail = header.clientWidth - (jar ? jar.offsetWidth : 0) - gap - 2;
   if(avail <= 0) return;
 
   h.style.fontSize = '';                       // auf den CSS-Wert zuruecksetzen
@@ -3186,8 +3456,12 @@ function fitTitle(){
   h.style.transform = prev;
   if(!w) return;
 
+  /* Die Scherung schiebt die Unterlaengen nach links heraus,
+     dieser Anteil muss von der nutzbaren Breite abgezogen werden. */
   let size = start * (avail / w);
-  size = Math.max(18, Math.min(size, 78));
+  const schraeg = size * 0.30;
+  size = start * ((avail - schraeg) / w);
+  size = Math.max(18, Math.min(size, 82));
   h.style.fontSize = size + 'px';
 }
 window.addEventListener('resize', fitTitle);
