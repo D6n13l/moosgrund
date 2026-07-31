@@ -1115,7 +1115,7 @@
             <option value="aurora">Nordlicht</option>
             <option value="wasser">Wasser</option>
             <option value="ringe">Jahresringe</option>
-            <option value="schwarm">Glühwürmchen im Glas</option>
+            <option value="schwarm">Glühwürmchen</option>
           </select>
         </span>
         <span class="ctl">Farben
@@ -1664,6 +1664,18 @@ function attachSampler(v, chain){
   }
   try{
     v.failed = false;
+    /* Die Aufnahmen erst selbst laden: so liegen sie auch einzeln vor und
+       lassen sich fuer Glissandi stufenlos in der Tonhoehe ziehen. */
+    try{
+      const puffer = new Tone.ToneAudioBuffers({
+        urls, baseUrl: base,
+        onload: ()=>{
+          const map = {};
+          Object.keys(urls).forEach(n=>{ try{ map[n] = puffer.get(n); }catch(e){} });
+          v.puffer = map;
+        }
+      });
+    }catch(e){}
     v.sampler = new Tone.Sampler({
       urls, baseUrl: base,
       attack: 0.006, release: 1.1, curve: 'exponential',
@@ -1959,35 +1971,61 @@ function playGlide(layer, vonNote, nachNote, dur, time, vel){
   const a = shiftNote(vonNote,  oct*12 + (v.def.shift||0));
   const b = shiftNote(nachNote, oct*12 + (v.def.shift||0));
 
-  /* Die Aufnahme gibt den Ansatz und die Klangfarbe: sie erklingt kurz
-     auf dem Anfangston. Den wandernden Teil traegt die Klangerzeugung,
-     denn ein Sample laesst sich nicht stufenlos verstimmen. */
-  if(v.sampler && v.ready){
-    try{ v.sampler.triggerAttackRelease(a, Math.min(dur, 0.22), time, vel*0.85); }catch(e){}
+  /* Der saubere Weg: die Aufnahme selbst abspielen und ihre
+     Abspielgeschwindigkeit waehrend des Klingens gleiten lassen.
+     Genau so rutscht eine Violine von einem Ton zum naechsten. */
+  if(v.puffer && Object.keys(v.puffer).length){
+    try{
+      const zielMidi = tonZuMidi(a), endMidi = tonZuMidi(b);
+      const namen = Object.keys(v.puffer);
+      const naechste = namen.reduce((best,k)=>
+        Math.abs(tonZuMidi(k)-zielMidi) < Math.abs(tonZuMidi(best)-zielMidi) ? k : best, namen[0]);
+      const tb = v.puffer[naechste];
+      const roh = tb && (tb.get ? tb.get() : tb);
+      if(roh){
+        const ctx = Tone.context.rawContext;
+        const quelle = ctx.createBufferSource();
+        quelle.buffer = roh;
+        const wurzel = tonZuMidi(naechste);
+        const r1 = Math.pow(2, (zielMidi - wurzel)/12);
+        const r2 = Math.pow(2, (endMidi  - wurzel)/12);
+        const gleit = Math.max(0.06, dur*0.88);
+        quelle.playbackRate.setValueAtTime(r1, time);
+        quelle.playbackRate.exponentialRampToValueAtTime(Math.max(0.05, r2), time + gleit);
+
+        const huelle = ctx.createGain();
+        const pegel = vel * Tone.dbToGain(v.def.vol === undefined ? -10 : v.def.vol);
+        huelle.gain.setValueAtTime(0.0001, time);
+        huelle.gain.linearRampToValueAtTime(pegel, time + 0.015);
+        huelle.gain.setValueAtTime(pegel, time + Math.max(0.05, dur*0.82));
+        huelle.gain.linearRampToValueAtTime(0.0001, time + dur + 0.06);
+
+        quelle.connect(huelle);
+        Tone.connect(huelle, v.ziel || v.chain.filter);
+        quelle.start(time);
+        quelle.stop(time + dur + 0.12);
+        quelle.onended = ()=>{ try{ huelle.disconnect(); quelle.disconnect(); }catch(e){} };
+        return;
+      }
+    }catch(e){ /* faellt unten auf die Klangerzeugung zurueck */ }
   }
 
+  /* Ersatzweg, solange keine Aufnahme geladen ist */
   if(!v.glide){
     try{
       const Bau = v.def.voice || Tone.Synth;
       v.glide = new Bau(v.def.opts || {});
-      /* Am Pegel der Aufnahme ausrichten, sonst sticht der Ton heraus. */
       v.glide.volume.value = (v.def.vol === undefined ? -12 : v.def.vol) - 3;
       v.glide.connect(v.ziel || v.chain.filter);
     }catch(e){ v.glide = null; }
   }
   if(!v.glide){ playLayerNote(layer, vonNote, dur, time, vel); return; }
-
   try{
-    const fa = Tone.Frequency(a).toFrequency();
-    const fb = Tone.Frequency(b).toFrequency();
-    if(!(fa > 0) || !(fb > 0)) throw new Error('Tonhoehe');
-
-    /* Vorherigen Verlauf beenden, sonst ueberlagern sich die Rampen. */
+    const fa = Tone.Frequency(a).toFrequency(), fb = Tone.Frequency(b).toFrequency();
+    if(!(fa>0) || !(fb>0)) throw new Error('Tonhoehe');
     try{ v.glide.triggerRelease(time); }catch(e){}
     v.glide.frequency.cancelScheduledValues(time);
-
-    /* Leiser Einsatz, damit der Ansatz von der Aufnahme kommt. */
-    v.glide.triggerAttack(a, time, vel*0.55);
+    v.glide.triggerAttack(a, time, vel*0.8);
     v.glide.frequency.setValueAtTime(fa, time);
     v.glide.frequency.exponentialRampToValueAtTime(fb, time + Math.max(0.08, dur*0.85));
     v.glide.triggerRelease(time + dur);
@@ -4125,7 +4163,7 @@ const VIZ_MODES = [
   {id:'aurora',      name:'Nordlicht'},
   {id:'wasser',      name:'Wasser'},
   {id:'ringe',       name:'Jahresringe'},
-  {id:'schwarm',     name:'Glühwürmchen im Glas'}
+  {id:'schwarm',     name:'Glühwürmchen'}
 ];
 const PALETTES = {
   prisma: {name:'Prisma',    base:0,   span:360, bg:'#05080f'},
@@ -4501,238 +4539,150 @@ function drawRinge(w,h,E){
   vctx.restore();
 }
 
-/* ---------- 7. Glühwürmchen im Glas ---------- */
-const glas = [];
+/* ---------- 7. Glühwürmchen in der Nacht ----------
+   Nach Photinus pyralis: 9–15 mm, dunkle Flügeldecken mit gelbem Rand,
+   helles Halsschild mit schwarzem Punkt in rotem Ring, Leuchtorgan an den
+   letzten Hinterleibssegmenten. Sie blitzen kurz und treiben dann dunkel weiter. */
+const kaefer = [];
 function drawSchwarm(w,h,E){
-  fade(w,h,0.16);
+  fade(w,h,0.11);
   const dpr = Math.min(window.devicePixelRatio||1, 2);
 
-  const gw = Math.min(w*0.74, h*1.05), gh = gw*0.78;
-  const gx = (w-gw)/2, gy = (h-gh)/2 + gh*0.08;
-  const r  = gh*0.13;
-  const lh = gh*0.13;                                   // Deckelhöhe
-  const innen = {x:gx+gw*0.07, y:gy+gh*0.09, w:gw*0.86, h:gh*0.82};
+  /* Nachthimmel: unten etwas heller, ein paar ferne Lichtpunkte */
+  const nacht = vctx.createLinearGradient(0,0,0,h);
+  nacht.addColorStop(0,   'rgba(6,10,20,0.10)');
+  nacht.addColorStop(0.7, 'rgba(8,14,22,0.05)');
+  nacht.addColorStop(1,   'rgba(14,20,16,0.10)');
+  vctx.fillStyle = nacht; vctx.fillRect(0,0,w,h);
 
-  while(glas.length < 14){
-    glas.push({
-      x: innen.x + Math.random()*innen.w,
-      y: innen.y + Math.random()*innen.h,
-      vx:(Math.random()-0.5)*0.8, vy:(Math.random()-0.5)*0.8,
-      gr: 0.65 + Math.random()*0.75,
-      ph: Math.random()*Math.PI*2,
-      fl: Math.random()*Math.PI*2,
-      tempo: 0.5 + Math.random(),
+  while(kaefer.length < 16){
+    kaefer.push({
+      x: Math.random()*w, y: Math.random()*h,
+      vx:(Math.random()-0.5)*0.7, vy:(Math.random()-0.5)*0.7,
+      gr: 0.6 + Math.random()*0.8,          // Größe = Nähe
+      fl: Math.random()*Math.PI*2,          // Flügelschlag
+      takt: 3 + Math.random()*4,            // Sekunden zwischen den Blitzen
+      uhr: Math.random()*5,
+      blitz: 0,                             // 0..1 Stärke des Leuchtens
       spur: []
     });
   }
 
-  /* ---- Glaskörper hinter den Tieren ---- */
-  const koerper = (versatz)=>{
-    vctx.beginPath();
-    vctx.moveTo(gx+versatz, gy+r);
-    vctx.lineTo(gx+versatz, gy+gh-r);
-    vctx.quadraticCurveTo(gx+versatz, gy+gh, gx+r+versatz, gy+gh);
-    vctx.lineTo(gx+gw-r-versatz, gy+gh);
-    vctx.quadraticCurveTo(gx+gw-versatz, gy+gh, gx+gw-versatz, gy+gh-r);
-    vctx.lineTo(gx+gw-versatz, gy+r);
-  };
+  const schub = 0.3 + E.rm*1.1;
+  const kick  = E.hitB;
 
-  vctx.save();
-  koerper(0); vctx.lineTo(gx+gw, gy); vctx.lineTo(gx, gy); vctx.closePath();
-  vctx.clip();
+  kaefer.forEach(f=>{
+    /* Blitzen: eigener Rhythmus, der Kick löst zusätzlich aus */
+    f.uhr += 1/60;
+    if(f.uhr > f.takt || (kick && Math.random() > 0.55)){
+      f.uhr = 0; f.blitz = 1;
+    }
+    f.blitz *= 0.955;                        // langsames Verlöschen
+    const st = Math.min(1, f.blitz + E.rb*0.12);
 
-  const tief = vctx.createLinearGradient(0, gy, 0, gy+gh);
-  tief.addColorStop(0,   'rgba(150,205,255,0.05)');
-  tief.addColorStop(0.6, 'rgba(70,130,190,0.09)');
-  tief.addColorStop(1,   'rgba(25,55,90,0.22)');
-  vctx.fillStyle = tief; vctx.fillRect(gx, gy, gw, gh);
-
-  const quer = vctx.createLinearGradient(gx, 0, gx+gw, 0);
-  quer.addColorStop(0,    'rgba(255,255,255,0.30)');
-  quer.addColorStop(0.07, 'rgba(210,235,255,0.10)');
-  quer.addColorStop(0.35, 'rgba(160,200,235,0.02)');
-  quer.addColorStop(0.65, 'rgba(160,200,235,0.03)');
-  quer.addColorStop(0.93, 'rgba(210,235,255,0.11)');
-  quer.addColorStop(1,    'rgba(255,255,255,0.32)');
-  vctx.fillStyle = quer; vctx.fillRect(gx, gy, gw, gh);
-
-  /* ---- Tiere ---- */
-  vctx.globalCompositeOperation='lighter';
-  const schub = 0.35 + E.rm*1.4;
-  const blitz = E.hitB ? 1 : 0;
-
-  glas.forEach(f=>{
-    f.vx += (Math.random()-0.5)*0.14*schub;
-    f.vy += (Math.random()-0.5)*0.14*schub;
+    /* Flugbahn: taumeln, beim Leuchten leicht steigen (J-Schlag) */
+    f.vx += (Math.random()-0.5)*0.13*schub;
+    f.vy += (Math.random()-0.5)*0.13*schub - f.blitz*0.06;
     const v = Math.hypot(f.vx,f.vy) || 1;
-    const max = (0.45 + E.rm*1.9) * f.tempo;
+    const max = (0.35 + E.rm*1.5) * (0.6 + f.gr*0.6);
     f.vx = f.vx/v*max; f.vy = f.vy/v*max;
     f.x += f.vx*dpr; f.y += f.vy*dpr;
-    if(f.x < innen.x){ f.x = innen.x; f.vx = Math.abs(f.vx); }
-    if(f.x > innen.x+innen.w){ f.x = innen.x+innen.w; f.vx = -Math.abs(f.vx); }
-    if(f.y < innen.y){ f.y = innen.y; f.vy = Math.abs(f.vy); }
-    if(f.y > innen.y+innen.h){ f.y = innen.y+innen.h; f.vy = -Math.abs(f.vy); }
+    const rand = 20*dpr;
+    if(f.x < -rand) f.x = w+rand;
+    if(f.x > w+rand) f.x = -rand;
+    if(f.y < -rand) f.y = h+rand;
+    if(f.y > h+rand) f.y = -rand;
 
-    f.ph += 0.018 + f.tempo*0.010;
-    f.fl += 0.9;
-    const st = Math.min(1, 0.22 + 0.55*(0.5+0.5*Math.sin(f.ph)) + blitz*0.6 + E.rb*0.25);
-
+    f.fl += 1.1;
     const winkel = Math.atan2(f.vy, f.vx);
-    const L = (7 + f.gr*7) * dpr;                    // Körperlänge
-    const B = L*0.34;                                 // Körperbreite
+    const L = (9 + f.gr*9) * dpr;             // Körperlänge
+    const B = L*0.38;
 
-    /* Leuchtspur des Hinterleibs, verschwimmt langsam */
-    const hx = f.x - Math.cos(winkel)*L*0.42;
-    const hy = f.y - Math.sin(winkel)*L*0.42;
-    f.spur.push({x:hx, y:hy, s:st});
-    if(f.spur.length > 14) f.spur.shift();
+    /* Leuchtorgan am Hinterleibsende */
+    const hx = f.x - Math.cos(winkel)*L*0.44;
+    const hy = f.y - Math.sin(winkel)*L*0.44;
+
+    /* Spur: das Licht verschwimmt langsam nach hinten */
+    f.spur.push({x:hx,y:hy,s:st});
+    if(f.spur.length > 16) f.spur.shift();
+
+    vctx.globalCompositeOperation='lighter';
     f.spur.forEach((p,i)=>{
+      if(p.s < 0.02) return;
       const alter = i/f.spur.length;
-      const rad = (2.5 + f.gr*7) * dpr * (0.5 + alter*0.9);
+      const rad = (2 + f.gr*6)*dpr*(0.4 + alter*1.0);
       const g = vctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rad);
-      const kraft = p.s * alter*alter * 0.5;
-      g.addColorStop(0,   'rgba(198,255,140,'+(kraft*0.8)+')');
-      g.addColorStop(0.35,'rgba(160,240,90,'+(kraft*0.4)+')');
-      g.addColorStop(1,   'rgba(120,220,60,0)');
-      vctx.fillStyle=g;
-      vctx.beginPath(); vctx.arc(p.x,p.y,rad,0,Math.PI*2); vctx.fill();
+      const k = p.s * alter*alter * 0.45;
+      g.addColorStop(0,   'rgba(216,255,150,'+(k*0.9)+')');
+      g.addColorStop(0.4, 'rgba(170,240,90,'+(k*0.35)+')');
+      g.addColorStop(1,   'rgba(140,220,60,0)');
+      vctx.fillStyle=g; vctx.beginPath(); vctx.arc(p.x,p.y,rad,0,Math.PI*2); vctx.fill();
     });
 
-    /* Leuchtorgan */
-    const rad = (3 + f.gr*9)*dpr*(0.8+st*0.6);
-    const g = vctx.createRadialGradient(hx,hy,0,hx,hy,rad);
-    g.addColorStop(0,   'rgba(228,255,190,'+(0.85*st)+')');
-    g.addColorStop(0.2, 'rgba(190,255,120,'+(0.5*st)+')');
-    g.addColorStop(0.55,'rgba(150,235,80,'+(0.16*st)+')');
-    g.addColorStop(1,   'rgba(120,220,60,0)');
-    vctx.fillStyle=g;
-    vctx.beginPath(); vctx.arc(hx,hy,rad,0,Math.PI*2); vctx.fill();
+    if(st > 0.02){
+      const rad = (4 + f.gr*14)*dpr*(0.6+st*0.9);
+      const g = vctx.createRadialGradient(hx,hy,0,hx,hy,rad);
+      g.addColorStop(0,   'rgba(238,255,205,'+(0.95*st)+')');
+      g.addColorStop(0.14,'rgba(205,255,130,'+(0.6*st)+')');
+      g.addColorStop(0.45,'rgba(160,240,80,'+(0.18*st)+')');
+      g.addColorStop(1,   'rgba(130,220,55,0)');
+      vctx.fillStyle=g; vctx.beginPath(); vctx.arc(hx,hy,rad,0,Math.PI*2); vctx.fill();
+    }
 
-    /* Körper: Kopf, Halsschild, Flügeldecken, Flügel */
+    /* Körper von oben, in Flugrichtung gedreht */
     vctx.globalCompositeOperation='source-over';
     vctx.save();
     vctx.translate(f.x, f.y);
     vctx.rotate(winkel);
 
-    const flatter = Math.abs(Math.sin(f.fl))*0.55 + 0.25;
-    vctx.fillStyle='rgba(225,240,255,0.16)';
-    vctx.beginPath(); vctx.ellipse(-L*0.05, -B*flatter, L*0.55, B*0.42, -0.35, 0, Math.PI*2); vctx.fill();
-    vctx.beginPath(); vctx.ellipse(-L*0.05,  B*flatter, L*0.55, B*0.42,  0.35, 0, Math.PI*2); vctx.fill();
+    /* Flügel: durchscheinend, schlagen */
+    const flat = Math.abs(Math.sin(f.fl))*0.7 + 0.25;
+    vctx.fillStyle='rgba(220,238,255,0.13)';
+    vctx.beginPath(); vctx.ellipse(-L*0.06, -B*flat, L*0.6, B*0.4, -0.30, 0, Math.PI*2); vctx.fill();
+    vctx.beginPath(); vctx.ellipse(-L*0.06,  B*flat, L*0.6, B*0.4,  0.30, 0, Math.PI*2); vctx.fill();
 
-    vctx.fillStyle='#24201a';
-    vctx.beginPath(); vctx.ellipse(-L*0.12, 0, L*0.42, B*0.5, 0, 0, Math.PI*2); vctx.fill();
-    vctx.fillStyle='rgba(255,255,255,0.10)';
-    vctx.beginPath(); vctx.ellipse(-L*0.18, -B*0.16, L*0.3, B*0.16, 0, 0, Math.PI*2); vctx.fill();
+    /* Beine */
+    vctx.strokeStyle='rgba(26,22,18,0.8)'; vctx.lineWidth=0.8*dpr;
+    [-1,1].forEach(sg=>{
+      [0.16,0.02,-0.14].forEach((p,k)=>{
+        vctx.beginPath();
+        vctx.moveTo(L*p, sg*B*0.34);
+        vctx.lineTo(L*(p-0.10), sg*B*(0.85+k*0.12));
+        vctx.stroke();
+      });
+    });
 
-    vctx.fillStyle='#3b2f22';
-    vctx.beginPath(); vctx.ellipse(L*0.26, 0, L*0.2, B*0.46, 0, 0, Math.PI*2); vctx.fill();
-    vctx.fillStyle='#181613';
-    vctx.beginPath(); vctx.ellipse(L*0.46, 0, L*0.13, B*0.3, 0, 0, Math.PI*2); vctx.fill();
+    /* Flügeldecken: dunkel mit hellem gelbem Rand */
+    vctx.fillStyle='#f0e08a';
+    vctx.beginPath(); vctx.ellipse(-L*0.13, 0, L*0.45, B*0.56, 0, 0, Math.PI*2); vctx.fill();
+    vctx.fillStyle='#2a231b';
+    vctx.beginPath(); vctx.ellipse(-L*0.13, 0, L*0.42, B*0.42, 0, 0, Math.PI*2); vctx.fill();
+    vctx.strokeStyle='rgba(240,224,138,0.55)'; vctx.lineWidth=0.7*dpr;
+    vctx.beginPath(); vctx.moveTo(-L*0.53, 0); vctx.lineTo(L*0.26, 0); vctx.stroke();
+    vctx.fillStyle='rgba(255,255,255,0.07)';
+    vctx.beginPath(); vctx.ellipse(-L*0.20, -B*0.14, L*0.28, B*0.14, 0, 0, Math.PI*2); vctx.fill();
 
-    vctx.strokeStyle='rgba(30,26,20,0.75)';
-    vctx.lineWidth=0.9*dpr;
-    [-1,1].forEach(sgn=>{
+    /* Halsschild: hell mit rotem Ring und schwarzem Punkt */
+    vctx.fillStyle='#e9dd94';
+    vctx.beginPath(); vctx.ellipse(L*0.27, 0, L*0.22, B*0.52, 0, 0, Math.PI*2); vctx.fill();
+    vctx.fillStyle='rgba(196,72,74,0.85)';
+    vctx.beginPath(); vctx.ellipse(L*0.27, 0, L*0.12, B*0.30, 0, 0, Math.PI*2); vctx.fill();
+    vctx.fillStyle='#171310';
+    vctx.beginPath(); vctx.ellipse(L*0.27, 0, L*0.05, B*0.14, 0, 0, Math.PI*2); vctx.fill();
+
+    /* Fühler */
+    vctx.strokeStyle='rgba(26,22,18,0.85)'; vctx.lineWidth=0.8*dpr;
+    [-1,1].forEach(sg=>{
       vctx.beginPath();
-      vctx.moveTo(L*0.5, sgn*B*0.18);
-      vctx.quadraticCurveTo(L*0.72, sgn*B*0.5, L*0.8, sgn*B*0.2);
+      vctx.moveTo(L*0.44, sg*B*0.14);
+      vctx.quadraticCurveTo(L*0.62, sg*B*0.42, L*0.70, sg*B*0.16);
       vctx.stroke();
     });
+
     vctx.restore();
-    vctx.globalCompositeOperation='lighter';
-
-    /* Spiegelung an der nächsten Glaswand */
-    const nahLinks = (f.x - innen.x) < innen.w*0.5;
-    const wx = nahLinks ? gx+gw*0.05 : gx+gw*0.95;
-    const naehe = 1 - Math.min(1, Math.abs(f.x-wx)/(innen.w*0.6));
-    if(naehe > 0.05){
-      const rg = vctx.createRadialGradient(wx,f.y,0,wx,f.y,rad*0.8);
-      rg.addColorStop(0,'rgba(190,255,130,'+(0.24*st*naehe)+')');
-      rg.addColorStop(1,'rgba(150,235,80,0)');
-      vctx.fillStyle=rg;
-      vctx.beginPath(); vctx.ellipse(wx,f.y,rad*0.3,rad*0.85,0,0,Math.PI*2); vctx.fill();
-    }
   });
-  vctx.restore();
 
-  /* ---- Glas über den Tieren: Kanten, Glanz, Boden ---- */
   vctx.globalCompositeOperation='source-over';
-  koerper(0);
-  vctx.strokeStyle='rgba(224,242,255,0.55)';
-  vctx.lineWidth=1.8*dpr;
-  vctx.stroke();
-
-  vctx.strokeStyle='rgba(255,255,255,0.22)';
-  vctx.lineWidth=1.1*dpr;
-  vctx.beginPath();
-  vctx.moveTo(gx+gw*0.035, gy+gh*0.12); vctx.lineTo(gx+gw*0.035, gy+gh*0.88); vctx.stroke();
-  vctx.beginPath();
-  vctx.moveTo(gx+gw*0.965, gy+gh*0.12); vctx.lineTo(gx+gw*0.965, gy+gh*0.88); vctx.stroke();
-
-  vctx.strokeStyle='rgba(255,255,255,0.30)';
-  vctx.lineWidth=3*dpr; vctx.lineCap='round';
-  vctx.beginPath();
-  vctx.moveTo(gx+gw*0.11, gy+gh*0.18);
-  vctx.quadraticCurveTo(gx+gw*0.075, gy+gh*0.5, gx+gw*0.095, gy+gh*0.82);
-  vctx.stroke();
-  vctx.strokeStyle='rgba(255,255,255,0.13)';
-  vctx.lineWidth=1.8*dpr;
-  vctx.beginPath();
-  vctx.moveTo(gx+gw*0.90, gy+gh*0.24);
-  vctx.quadraticCurveTo(gx+gw*0.925, gy+gh*0.55, gx+gw*0.905, gy+gh*0.78);
-  vctx.stroke();
-
-  /* Bodendicke und Totalreflexion */
-  vctx.strokeStyle='rgba(255,255,255,0.26)';
-  vctx.lineWidth=1.3*dpr;
-  vctx.beginPath();
-  vctx.moveTo(gx+gw*0.08, gy+gh*0.93);
-  vctx.quadraticCurveTo(gx+gw*0.5, gy+gh*1.0, gx+gw*0.92, gy+gh*0.93);
-  vctx.stroke();
-
-  /* ---- Deckel: Metall mit Riffelrand ---- */
-  const dx0 = gx-gw*0.025, dw = gw*1.05, dy0 = gy-lh;
-  const metall = vctx.createLinearGradient(dx0, 0, dx0+dw, 0);
-  metall.addColorStop(0,    '#4e5561');
-  metall.addColorStop(0.12, '#c3ccd9');
-  metall.addColorStop(0.28, '#79828f');
-  metall.addColorStop(0.5,  '#e2e9f2');
-  metall.addColorStop(0.72, '#6f7883');
-  metall.addColorStop(0.88, '#b6bfcc');
-  metall.addColorStop(1,    '#434a55');
-  vctx.fillStyle = metall;
-  vctx.beginPath();
-  vctx.moveTo(dx0, dy0+lh);
-  vctx.lineTo(dx0, dy0+lh*0.22);
-  vctx.quadraticCurveTo(dx0, dy0, dx0+lh*0.22, dy0);
-  vctx.lineTo(dx0+dw-lh*0.22, dy0);
-  vctx.quadraticCurveTo(dx0+dw, dy0, dx0+dw, dy0+lh*0.22);
-  vctx.lineTo(dx0+dw, dy0+lh);
-  vctx.closePath();
-  vctx.fill();
-
-  vctx.strokeStyle='rgba(20,24,30,0.55)';
-  vctx.lineWidth=1*dpr; vctx.stroke();
-
-  for(let i=1;i<22;i++){
-    const lx = dx0 + dw*i/22;
-    vctx.strokeStyle = (i%2 ? 'rgba(30,35,42,0.30)' : 'rgba(255,255,255,0.16)');
-    vctx.lineWidth = 1*dpr;
-    vctx.beginPath();
-    vctx.moveTo(lx, dy0+lh*0.24); vctx.lineTo(lx, dy0+lh*0.92);
-    vctx.stroke();
-  }
-  vctx.fillStyle='rgba(255,255,255,0.20)';
-  vctx.fillRect(dx0, dy0+lh*0.16, dw, lh*0.10);
-  vctx.fillStyle='rgba(0,0,0,0.28)';
-  vctx.fillRect(dx0, dy0+lh*0.92, dw, lh*0.08);
-
-  /* Luftlöcher */
-  vctx.fillStyle='rgba(18,22,28,0.8)';
-  [0.36,0.5,0.64].forEach(p=>{
-    vctx.beginPath();
-    vctx.ellipse(dx0+dw*p, dy0+lh*0.55, 2.0*dpr, 1.4*dpr, 0, 0, Math.PI*2);
-    vctx.fill();
-  });
 }
 
 drawViz();
