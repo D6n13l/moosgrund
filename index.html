@@ -1254,7 +1254,26 @@ const masterComp = new Tone.Compressor({threshold:-14, ratio:3,
   attack:0.006, release:0.12, knee:8}).connect(masterLimiter);
 /* Gleichspannung und Infraschall abschneiden, das erzeugt sonst Knurren. */
 const masterHP = new Tone.Filter({type:'highpass', frequency:22, rolloff:-12}).connect(masterComp);
-const masterGain = new Tone.Gain(Tone.dbToGain(-9)).connect(masterHP);
+/* Übergangsweg: Filter und Blende wirken auf die ganze Mischung,
+   damit ein Abschnitt weich in den nächsten übergehen kann. */
+const uebFilter = new Tone.Filter({type:'lowpass', frequency:20000, rolloff:-24}).connect(masterHP);
+const uebGain   = new Tone.Gain(1).connect(uebFilter);
+const masterGain = new Tone.Gain(Tone.dbToGain(-9)).connect(uebGain);
+
+const UEBERGAENGE = {
+  keiner:  'ohne',
+  filter:  'Filter schließt',
+  blende:  'Ausblenden',
+  verzahnt:'Verzahnt'
+};
+function uebergangZuruecksetzen(zeit){
+  try{
+    uebFilter.frequency.cancelScheduledValues(zeit);
+    uebGain.gain.cancelScheduledValues(zeit);
+    uebFilter.frequency.setValueAtTime(20000, zeit);
+    uebGain.gain.setValueAtTime(1, zeit);
+  }catch(e){}
+}
 const analyser = new Tone.Analyser('fft', 128);
 masterGain.connect(analyser);
 document.getElementById('master').addEventListener('input', e=>{
@@ -2476,6 +2495,70 @@ Tone.Transport.scheduleRepeat((time)=>{
 
   if(!scene){ tick++; return; }
 
+  /* Übergang zum nächsten Abschnitt vorbereiten */
+  if(playMode === 'set' && blockIdx >= 0){
+    const blk = song.arrangement[blockIdx];
+    const art = blk.uebergang || 'keiner';
+    let anfang = 0;
+    for(let i=0;i<blockIdx;i++) anfang += song.arrangement[i].bars;
+    const imBlock = bar - anfang;                 // Takt innerhalb des Abschnitts
+    const restTakte = blk.bars - imBlock;
+    const sekProTakt = (60 / (scene.bpm || song.bpm || 126)) * 4;
+
+    if(step === 0){
+      if(art === 'filter' && restTakte === 2){
+        try{
+          uebFilter.frequency.cancelScheduledValues(time);
+          uebFilter.frequency.setValueAtTime(20000, time);
+          uebFilter.frequency.exponentialRampToValueAtTime(420, time + sekProTakt*2);
+        }catch(e){}
+      }
+      if(art === 'blende' && restTakte === 1){
+        try{
+          uebGain.gain.cancelScheduledValues(time);
+          uebGain.gain.setValueAtTime(1, time);
+          uebGain.gain.linearRampToValueAtTime(0.25, time + sekProTakt);
+        }catch(e){}
+      }
+      if(imBlock === 0){
+        /* Anfang eines Abschnitts: Übergang des Vorgängers auflösen */
+        const vor = song.arrangement[blockIdx-1];
+        const vorArt = vor && vor.uebergang;
+        if(vorArt === 'filter'){
+          try{
+            uebFilter.frequency.cancelScheduledValues(time);
+            uebFilter.frequency.setValueAtTime(420, time);
+            uebFilter.frequency.exponentialRampToValueAtTime(20000, time + sekProTakt);
+          }catch(e){}
+        } else if(vorArt === 'blende'){
+          try{
+            uebGain.gain.cancelScheduledValues(time);
+            uebGain.gain.setValueAtTime(0.25, time);
+            uebGain.gain.linearRampToValueAtTime(1, time + sekProTakt*0.75);
+          }catch(e){}
+        } else {
+          uebergangZuruecksetzen(time);
+        }
+      }
+    }
+
+    /* Verzahnt: im letzten Takt klingt die kommende Szene schon mit */
+    if(art === 'verzahnt' && restTakte === 1){
+      const naechster = song.arrangement[blockIdx+1];
+      const kommt = naechster && sceneById(naechster.sceneId);
+      if(kommt && kommt.id !== scene.id){
+        DRUM_TRACKS.forEach(t=>{
+          if(kommt.drums[t.key][step] && !scene.drums[t.key][step]) triggerDrum(t.key, time);
+        });
+        if(kommt.bass[step] && !scene.bass[step]){
+          const bl = (kommt.bassLen && kommt.bassLen[step]) || 1;
+          const s16 = (60 / (kommt.bpm || song.bpm || 126)) / 4;
+          bassSynth.triggerAttackRelease(kommt.bass[step], s16*bl*0.9, time, 0.6);
+        }
+      }
+    }
+  }
+
   /* Tempo der Szene zum Taktanfang uebernehmen */
   if(step === 0){
     const ziel = scene.bpm || song.bpm;
@@ -2526,6 +2609,7 @@ Tone.Transport.scheduleRepeat((time)=>{
 }, '16n');
 
 function stopPlayback(){
+  uebergangZuruecksetzen(Tone.now());
   Tone.Transport.stop();
   isPlaying=false; tick=0; seeked=false; currentStep=0; soundingSceneId=null;
   const b=document.getElementById('playBtn');
@@ -3581,6 +3665,18 @@ function renderArrangement(){
     barSel.addEventListener('change', ()=>{ blk.bars=Number(barSel.value); markDirty(); renderArrangement(); });
     kopf.appendChild(barSel);
 
+    const uSel=document.createElement('select');
+    uSel.title='Übergang zum nächsten Abschnitt';
+    Object.keys(UEBERGAENGE).forEach(k=>{
+      const o=document.createElement('option');
+      o.value=k; o.textContent=UEBERGAENGE[k];
+      if((blk.uebergang||'keiner')===k) o.selected=true;
+      uSel.appendChild(o);
+    });
+    uSel.addEventListener('click', ev=>ev.stopPropagation());
+    uSel.addEventListener('change', ()=>{ blk.uebergang = uSel.value; markDirty(); renderArrangement(); });
+    kopf.appendChild(uSel);
+
     const time=document.createElement('div');
     time.className='arr-time'; time.textContent=fmt(blockSeconds(blk));
     kopf.appendChild(time);
@@ -4054,6 +4150,8 @@ function drawWaveform(){
    ========================================================== */
 function loadSongInto(obj){
   song = obj;
+  if(!Array.isArray(song.arrangement)) song.arrangement = [];
+  song.arrangement.forEach(b=>{ if(!UEBERGAENGE[b.uebergang]) b.uebergang = 'keiner'; });
   song.scenes.forEach(s=>{
     if(!s.melSettings) s.melSettings = defaultMelSettings();
     const d = defaultMelSettings();
