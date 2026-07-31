@@ -1020,6 +1020,7 @@
       <div class="roll" id="melRoll"></div>
       <div class="sectionlabel">Frei dazuspielen</div>
       <div class="keys" id="keyboard"></div>
+      <div class="hint">Waagrecht wischen hält einen Ton, schräg wischen lässt ihn gleiten &mdash; wie eine Violine, die von einem Ton zum nächsten rutscht.</div>
       <div class="hint">Jede Szene kann bis zu vier Ebenen übereinander legen, jede mit eigenem Instrument und eigenen Reglern. Tippen wählt eine Ebene, Doppeltippen schaltet sie stumm. Noten der anderen Ebenen erscheinen blass im Raster.</div>
     </div>
   </div>
@@ -1232,9 +1233,15 @@ document.getElementById('gateBtn').addEventListener('click', async ()=>{
 /* ==========================================================
    AUDIO GRAPH
    ========================================================== */
-try{ Tone.context.lookAhead = 0.2; }catch(e){}
-const masterLimiter = new Tone.Limiter(-1.2).toDestination();
-const masterGain = new Tone.Gain(Tone.dbToGain(-6)).connect(masterLimiter);
+try{ Tone.context.lookAhead = 0.3; }catch(e){}   /* mehr Vorlauf, weniger Aussetzer */
+const masterLimiter = new Tone.Limiter(-1.5).toDestination();
+/* Der Begrenzer allein klingt hart, wenn viel gleichzeitig laeuft.
+   Ein davor liegender Kompressor faengt Spitzen weich ab. */
+const masterComp = new Tone.Compressor({threshold:-14, ratio:3,
+  attack:0.006, release:0.12, knee:8}).connect(masterLimiter);
+/* Gleichspannung und Infraschall abschneiden, das erzeugt sonst Knurren. */
+const masterHP = new Tone.Filter({type:'highpass', frequency:22, rolloff:-12}).connect(masterComp);
+const masterGain = new Tone.Gain(Tone.dbToGain(-9)).connect(masterHP);
 const analyser = new Tone.Analyser('fft', 128);
 masterGain.connect(analyser);
 document.getElementById('master').addEventListener('input', e=>{
@@ -1373,14 +1380,14 @@ function kickSettings(){
 function kickFreq(){ return 32 + (kickSettings().tiefe/100)*30; }   // 32–62 Hz
 function applyKick(){
   const k = kickSettings();
-  kickGain.gain.rampTo(Tone.dbToGain(-6 + (k.druck/100)*14), 0.05);
+  kickGain.gain.rampTo(Tone.dbToGain(-8 + (k.druck/100)*12), 0.05);
   kickShelf.gain.rampTo((k.druck/100)*9, 0.05);
   kickSat.distortion = 0.03 + (k.druck/100)*0.30;
   kickComp.threshold.rampTo(-14 - (k.druck/100)*14, 0.05);
   const dec = 0.16 + (k.laenge/100)*0.62;
   try{ kick.set({envelope:{decay:dec, release:dec}}); }catch(e){}
   subEnv.decay = dec * 1.15;
-  subGain.gain.rampTo((k.sub/100)*0.55, 0.05);
+  subGain.gain.rampTo((k.sub/100)*0.42, 0.05);
 }
 function kickNote(){
   const off = Math.round(-7 + (kickSettings().tiefe/100)*10);   // -7 .. +3 Halbtoene
@@ -1492,6 +1499,7 @@ function disposeChain(layerId){
     if(v.sampler){ try{ v.sampler.dispose(); }catch(e){} }
     if(v.fmt) v.fmt.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
     if(v.fx)  v.fx.nodes.forEach(n=>{ try{ n.dispose(); }catch(e){} });
+    if(v.glide){ try{ v.glide.dispose(); }catch(e){} }
     loeseTeilstimme(v.brust); loeseTeilstimme(v.kopf);
   });
   if(c.choir) Object.values(c.choir).forEach(n=>{ try{ n.dispose(); }catch(e){} });
@@ -1646,7 +1654,7 @@ function attachSampler(v, chain){
     v.failed = false;
     v.sampler = new Tone.Sampler({
       urls, baseUrl: base,
-      release: 1.1,
+      attack: 0.006, release: 1.1, curve: 'exponential',
       onload: ()=>{ v.ready = true; updateLoadHint(); },
       onerror: ()=>{ v.failed = true; v.sampler = null; updateLoadHint(); }
     });
@@ -1915,6 +1923,7 @@ function getVoice(layerId, kind){
   }
 
   v.synth = new Tone.PolySynth(def.voice || Tone.Synth, def.opts || {});
+  try{ v.synth.maxPolyphony = 6; }catch(e){}      /* verhindert Stimmenlawinen */
   v.synth.volume.value = def.vol || -12;
   v.synth.connect(ziel);
 
@@ -1927,6 +1936,34 @@ function shiftNote(note, semitones){
   if(!semitones) return note;
   try{ return Tone.Frequency(note).transpose(semitones).toNote(); }
   catch(e){ return note; }
+}
+
+/* Glissando: ein Ton, dessen Tonhoehe waehrend des Klingens wandert.
+   Aufnahmen lassen sich nicht stufenlos verstimmen, deshalb uebernimmt
+   hier die Klangerzeugung des Instruments – wie eine Violine, die rutscht. */
+function playGlide(layer, vonNote, nachNote, dur, time, vel){
+  const v = getVoice(layer.id, layer.instrument);
+  const oct = (layer.settings && layer.settings.oct) || 0;
+  const a = shiftNote(vonNote,  oct*12 + (v.def.shift||0));
+  const b = shiftNote(nachNote, oct*12 + (v.def.shift||0));
+
+  if(!v.glide){
+    try{
+      v.glide = new (v.def.voice || Tone.Synth)(v.def.opts || {});
+      v.glide.volume.value = (v.def.vol === undefined ? -12 : v.def.vol) + 2;
+      v.glide.connect(v.ziel || v.chain.filter);
+    }catch(e){ v.glide = null; }
+  }
+  if(!v.glide){ playLayerNote(layer, vonNote, dur, time, vel); return; }
+
+  try{
+    const fa = Tone.Frequency(a).toFrequency();
+    const fb = Tone.Frequency(b).toFrequency();
+    v.glide.triggerAttack(a, time, vel);
+    v.glide.frequency.setValueAtTime(fa, time);
+    v.glide.frequency.exponentialRampToValueAtTime(fb, time + Math.max(0.05, dur*0.9));
+    v.glide.triggerRelease(time + dur);
+  }catch(e){}
 }
 
 function playLayerNote(layer, note, dur, time, vel){
@@ -2000,8 +2037,8 @@ function applyLayerSettings(layer, force){
   }catch(e){}
   if(v.sampler){
     try{
-      v.sampler.attack  = (st.att/100)*0.6;
-      v.sampler.release = 0.25 + (st.rel/100)*2.4;
+      v.sampler.attack  = 0.006 + (st.att/100)*0.6;
+      v.sampler.release = Math.max(0.06, 0.25 + (st.rel/100)*2.4);
     }catch(e){}
   }
 
@@ -2015,7 +2052,7 @@ function applyLayerSettings(layer, force){
     c.blend.fade.rampTo(e, 0.08);
     c.drive.distortion = 0.12 + e*0.6;
     c.bite.frequency.rampTo(1200 + e*5200, 0.08);
-    c.bite.Q.rampTo(1 + e*9, 0.08);
+    c.bite.Q.rampTo(1 + e*5, 0.08);
     c.chorus.depth = 0.2 + e*0.6;
   } else if(c.drive){
     c.blend.fade.rampTo(0, 0.08);
@@ -2041,6 +2078,7 @@ function emptyDrums(){
 function newLayer(instrument){
   return {id:'L'+uid(), instrument:instrument||'piano',
           mel:new Array(16).fill(null), melLen:new Array(16).fill(1),
+          melTo:new Array(16).fill(null),
           settings:defaultMelSettings(), mute:false};
 }
 function makeScene(name, preset){
@@ -2387,7 +2425,10 @@ Tone.Transport.scheduleRepeat((time)=>{
     applyLayerSettings(L);
     const ml = (L.melLen && L.melLen[step]) || 1;
     const sechzehntel = (60 / (scene.bpm || song.bpm || 126)) / 4;
-    playLayerNote(L, L.mel[step], sechzehntel*ml*0.96, time, humanVel());
+    const dauer = sechzehntel*ml*0.96;
+    const ziel = L.melTo && L.melTo[step];
+    if(ziel && ziel !== L.mel[step]) playGlide(L, L.mel[step], ziel, dauer, time, humanVel());
+    else playLayerNote(L, L.mel[step], dauer, time, humanVel());
   });
 
   if(scene.voice && scene.voice[step]){
@@ -2707,13 +2748,42 @@ function midiOf(n){
 }
 /* Note ueber mehrere Schritte setzen: alles im Bereich raeumen und
    eine davor liegende Note kuerzen, damit nichts ueberlappt. */
-function setzeNote(arr, lenArr, step, note, len){
+function setzeNote(arr, lenArr, step, note, len, toArr, ziel){
   for(let i=0;i<step;i++){
     if(arr[i] && i + (lenArr[i]||1) > step) lenArr[i] = step - i;
   }
-  for(let i=step; i<Math.min(STEPS, step+len); i++){ arr[i]=null; lenArr[i]=1; }
+  for(let i=step; i<Math.min(STEPS, step+len); i++){
+    arr[i]=null; lenArr[i]=1;
+    if(toArr) toArr[i]=null;
+  }
   arr[step]=note; lenArr[step]=len;
+  if(toArr) toArr[step] = (ziel && ziel !== note) ? ziel : null;
 }
+/* Alle belegten Felder einer Ebene, auch schraege Verlaeufe.
+   Rueckgabe: Schluessel "Ton|Schritt" -> 1 Anfang, 2 Fortsetzung. */
+function belegung(mel, len, to, skala){
+  const m = {};
+  for(let i=0;i<STEPS;i++){
+    if(!mel[i]) continue;
+    const l = Math.max(1, (len && len[i]) || 1);
+    const ziel = to && to[i];
+    if(ziel && ziel !== mel[i]){
+      const ia = skala.indexOf(mel[i]), ib = skala.indexOf(ziel);
+      if(ia >= 0 && ib >= 0){
+        for(let k=0;k<l && i+k<STEPS;k++){
+          const t = l>1 ? k/(l-1) : 0;
+          const idx = Math.round(ia + (ib-ia)*t);
+          const note = skala[Math.max(0, Math.min(skala.length-1, idx))];
+          m[note+'|'+(i+k)] = k===0 ? 1 : 2;
+        }
+        continue;
+      }
+    }
+    for(let k=0;k<l && i+k<STEPS;k++) m[mel[i]+'|'+(i+k)] = k===0 ? 1 : 2;
+  }
+  return m;
+}
+
 /* Welche Schritte sind von einer klingenden Note bedeckt? */
 function deckung(arr, lenArr, note){
   const d = new Array(STEPS).fill(0);
@@ -2921,50 +2991,76 @@ buildRoll('bassRoll', BASS_SCALE, 'basscell');
 buildRoll('melRoll',  MEL_SCALE,  'melcell');
 
 /* Tippen setzt einen einzelnen Ton, Wischen nach rechts zieht ihn lang. */
-function rollBedienung(cellClass, holen){
-  let zieht = null;   // {note, start, cur}
+function rollBedienung(cellClass, holen, skala){
+  let zieht = null;   // {note, start, curNote, cur}
 
   function zelle(x, y){
     const el = document.elementFromPoint(x, y);
     return (el && el.classList.contains(cellClass)) ? el : null;
   }
+  /* Felder entlang der Verbindung von Anfang zu Ende */
+  function pfad(){
+    if(!zieht) return [];
+    const a = Math.min(zieht.start, zieht.cur), b = Math.max(zieht.start, zieht.cur);
+    const vorwaerts = zieht.cur >= zieht.start;
+    const vonNote = vorwaerts ? zieht.note : zieht.curNote;
+    const nachNote = vorwaerts ? zieht.curNote : zieht.note;
+    const ia = skala.indexOf(vonNote), ib = skala.indexOf(nachNote);
+    const l = b - a + 1;
+    const out = [];
+    for(let k=0;k<l;k++){
+      const t = l>1 ? k/(l-1) : 0;
+      const idx = Math.round(ia + (ib-ia)*t);
+      out.push({step:a+k, note:skala[Math.max(0,Math.min(skala.length-1,idx))]});
+    }
+    return out;
+  }
   function vorschau(){
     document.querySelectorAll('.'+cellClass+'.ziehen')
             .forEach(el=>el.classList.remove('ziehen'));
     if(!zieht) return;
-    const a = Math.min(zieht.start, zieht.cur), b = Math.max(zieht.start, zieht.cur);
-    document.querySelectorAll('.'+cellClass).forEach(el=>{
-      const st = Number(el.dataset.step);
-      if(el.dataset.note === zieht.note && st >= a && st <= b) el.classList.add('ziehen');
+    const p = pfad();
+    p.forEach(({step,note})=>{
+      const el = document.querySelector('.'+cellClass+'[data-step="'+step+'"][data-note="'+
+                 (window.CSS && CSS.escape ? CSS.escape(note) : note)+'"]');
+      if(el) el.classList.add('ziehen');
     });
   }
 
   document.addEventListener('pointerdown', ev=>{
     const c = ev.target.closest && ev.target.closest('.'+cellClass);
     if(!c) return;
-    zieht = {note:c.dataset.note, start:Number(c.dataset.step), cur:Number(c.dataset.step)};
+    zieht = {note:c.dataset.note, start:Number(c.dataset.step),
+             curNote:c.dataset.note, cur:Number(c.dataset.step)};
     vorschau();
   });
 
   document.addEventListener('pointermove', ev=>{
     if(!zieht) return;
     const c = zelle(ev.clientX, ev.clientY);
-    if(c && c.dataset.note === zieht.note){
-      const st = Number(c.dataset.step);
-      if(st !== zieht.cur){ zieht.cur = st; vorschau(); ev.preventDefault(); }
+    if(!c) return;
+    const st = Number(c.dataset.step);
+    if(st !== zieht.cur || c.dataset.note !== zieht.curNote){
+      zieht.cur = st; zieht.curNote = c.dataset.note;
+      vorschau(); ev.preventDefault();
     }
   }, {passive:false});
 
   function beenden(){
     if(!zieht) return;
-    const {arr, lenArr} = holen() || {};
+    const {arr, lenArr, toArr} = holen() || {};
     if(arr){
       const a = Math.min(zieht.start, zieht.cur), b = Math.max(zieht.start, zieht.cur);
       const laenge = b - a + 1;
-      if(laenge === 1 && arr[a] === zieht.note){
-        arr[a] = null; lenArr[a] = 1;                 // gesetzten Ton wieder entfernen
+      const vorwaerts = zieht.cur >= zieht.start;
+      const vonNote = vorwaerts ? zieht.note : zieht.curNote;
+      const nachNote = vorwaerts ? zieht.curNote : zieht.note;
+
+      if(laenge === 1 && arr[a] === vonNote && !(toArr && toArr[a])){
+        arr[a] = null; lenArr[a] = 1;
+        if(toArr) toArr[a] = null;
       } else {
-        setzeNote(arr, lenArr, a, zieht.note, laenge);
+        setzeNote(arr, lenArr, a, vonNote, laenge, toArr, nachNote);
       }
       markDirty(); refreshRolls();
     }
@@ -2981,22 +3077,24 @@ rollBedienung('basscell', ()=>{
   if(!sc) return null;
   if(!Array.isArray(sc.bassLen)) sc.bassLen = new Array(STEPS).fill(1);
   return {arr: sc.bass, lenArr: sc.bassLen};
-});
+}, BASS_SCALE);
 rollBedienung('melcell', ()=>{
   const L = editLayer();
   if(!L) return null;
   if(!Array.isArray(L.melLen)) L.melLen = new Array(STEPS).fill(1);
-  return {arr: L.mel, lenArr: L.melLen};
-});
+  if(!Array.isArray(L.melTo))  L.melTo  = new Array(STEPS).fill(null);
+  return {arr: L.mel, lenArr: L.melLen, toArr: L.melTo};
+}, MEL_SCALE);
 
 function refreshRolls(){
   const sc=editScene();
   if(!sc) return;
   if(!Array.isArray(sc.bassLen)) sc.bassLen = new Array(STEPS).fill(1);
 
+  const bBel = belegung(sc.bass, sc.bassLen, null, BASS_SCALE);
   document.querySelectorAll('.basscell').forEach(c=>{
     const st=Number(c.dataset.step);
-    const d = deckung(sc.bass, sc.bassLen, c.dataset.note)[st];
+    const d = bBel[c.dataset.note+'|'+st];
     c.style.color = '#4ee6ff';
     c.style.background = d ? '#4ee6ff' : '';
     c.classList.toggle('lit', !!d);
@@ -3005,15 +3103,13 @@ function refreshRolls(){
 
   const L = editLayer();
   const others = (sc.layers||[]).filter(x=>L && x.id!==L.id);
-  const dAktiv = {};
+  const aktivBel = L ? belegung(L.mel, L.melLen, L.melTo, MEL_SCALE) : {};
+  const fremdBel = others.map(x=>belegung(x.mel, x.melLen, x.melTo, MEL_SCALE));
   document.querySelectorAll('.melcell').forEach(c=>{
     const st=Number(c.dataset.step), note=c.dataset.note;
-    if(!dAktiv[note]) dAktiv[note] = L ? deckung(L.mel, L.melLen, note) : new Array(STEPS).fill(0);
-    const d = dAktiv[note][st];
-    const ghost = !d && others.some(x=>{
-      const dd = deckung(x.mel, x.melLen || new Array(STEPS).fill(1), note);
-      return !!dd[st];
-    });
+    const schluessel = note+'|'+st;
+    const d = aktivBel[schluessel];
+    const ghost = !d && fremdBel.some(b=>!!b[schluessel]);
     c.style.color = '#a97bff';
     c.style.background = d ? '#a97bff' : (ghost ? 'rgba(169,123,255,0.22)' : '');
     c.classList.toggle('lit', !!d);
@@ -3762,6 +3858,7 @@ function loadSongInto(obj){
       if(!INSTRUMENTS[L.instrument]) L.instrument = INSTRUMENT_ALIASES[L.instrument] || 'piano';
       if(!Array.isArray(L.mel) || L.mel.length!==16) L.mel=new Array(16).fill(null);
       if(!Array.isArray(L.melLen) || L.melLen.length!==16) L.melLen=new Array(16).fill(1);
+      if(!Array.isArray(L.melTo)  || L.melTo.length!==16)  L.melTo =new Array(16).fill(null);
       if(!L.settings) L.settings = defaultMelSettings();
       const d=defaultMelSettings();
       Object.keys(d).forEach(k=>{ if(L.settings[k]===undefined) L.settings[k]=d[k]; });
