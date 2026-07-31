@@ -553,6 +553,7 @@
   .arr-bild .mp{width:100%;height:26px;display:block;opacity:0.9;}
   .arr-block.sounding{border-color:var(--honey);box-shadow:0 0 0 1px rgba(176,138,60,0.4);}
   .arr-block select{padding:5px 7px;font-size:0.73rem;}
+  .arr-kopf .pfeil{padding:5px 7px;font-size:0.66rem;line-height:1;}
   .arr-block .mini{padding:6px 9px;font-size:0.71rem;border-radius:8px;}
   .arr-time{font-family:'IBM Plex Mono',monospace;font-size:0.67rem;color:var(--bark);
     width:48px;text-align:right;}
@@ -2624,6 +2625,28 @@ function copyScene(){
   return k;
 }
 
+function moveBlock(i, richtung){
+  const j = i + richtung;
+  if(j < 0 || j >= song.arrangement.length) return false;
+  song.arrangement.splice(j, 0, song.arrangement.splice(i,1)[0]);
+  markDirty();
+  renderArrangement();
+  return true;
+}
+
+function moveScene(richtung){
+  const sc = editScene();
+  if(!sc) return false;
+  const i = song.scenes.indexOf(sc);
+  const j = i + richtung;
+  if(j < 0 || j >= song.scenes.length) return false;
+  song.scenes.splice(j, 0, song.scenes.splice(i,1)[0]);
+  markDirty();
+  refreshAllEditors();
+  renderArrangement();
+  return true;
+}
+
 function deleteScene(){
   const sc = editScene();
   if(!sc) return false;
@@ -2696,6 +2719,20 @@ function renderSceneChips(){
     kopie.title='Aktuelle Szene verdoppeln';
     kopie.addEventListener('click', ()=>{ copyScene(); });
     el.appendChild(kopie);
+
+    const links=document.createElement('button');
+    links.className='scene-chip'; links.textContent='◀';
+    links.title='Szene nach vorne schieben';
+    links.disabled = song.scenes.indexOf(editScene()) === 0;
+    links.addEventListener('click', ()=> moveScene(-1));
+    el.appendChild(links);
+
+    const rechts=document.createElement('button');
+    rechts.className='scene-chip'; rechts.textContent='▶';
+    rechts.title='Szene nach hinten schieben';
+    rechts.disabled = song.scenes.indexOf(editScene()) === song.scenes.length-1;
+    rechts.addEventListener('click', ()=> moveScene(1));
+    el.appendChild(rechts);
 
     const weg=document.createElement('button');
     weg.className='scene-chip'; weg.textContent='✕ Entfernen';
@@ -3550,9 +3587,23 @@ function renderArrangement(){
 
     const sp=document.createElement('div'); sp.className='arr-spacer'; kopf.appendChild(sp);
 
+    const hoch=document.createElement('button');
+    hoch.className='mini pfeil'; hoch.textContent='▲';
+    hoch.title='Abschnitt nach oben';
+    hoch.disabled = (i === 0);
+    hoch.addEventListener('click', ev=>{ ev.stopPropagation(); moveBlock(i,-1); });
+    kopf.appendChild(hoch);
+
+    const runter=document.createElement('button');
+    runter.className='mini pfeil'; runter.textContent='▼';
+    runter.title='Abschnitt nach unten';
+    runter.disabled = (i === song.arrangement.length-1);
+    runter.addEventListener('click', ev=>{ ev.stopPropagation(); moveBlock(i,1); });
+    kopf.appendChild(runter);
+
     const del=document.createElement('button');
     del.className='mini'; del.textContent='✕';
-    del.addEventListener('click', ()=>{ song.arrangement.splice(i,1); markDirty(); renderArrangement(); });
+    del.addEventListener('click', ev=>{ ev.stopPropagation(); song.arrangement.splice(i,1); markDirty(); renderArrangement(); });
     kopf.appendChild(del);
 
     const bild=document.createElement('div');
