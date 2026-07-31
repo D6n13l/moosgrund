@@ -614,6 +614,8 @@
   <div id="gateNote"></div>
 </div>
 
+<button id="vollRaus">Schließen</button>
+
 <div class="wrap">
   <header>
     <svg class="glas" style="order:2" viewBox="0 0 96 78" aria-hidden="true">
@@ -1100,7 +1102,7 @@
             <option value="aurora">Nordlicht</option>
             <option value="wasser">Wasser</option>
             <option value="ringe">Jahresringe</option>
-            <option value="schwarm">Schwarm</option>
+            <option value="schwarm">Glühwürmchen im Glas</option>
           </select>
         </span>
         <span class="ctl">Farben
@@ -2312,8 +2314,14 @@ let song = null;
 let editSceneId = null;
 let dirty = false;
 
-function editScene(){ return song.scenes.find(s=>s.id===editSceneId) || song.scenes[0]; }
-function sceneById(id){ return song.scenes.find(s=>s.id===id); }
+function editScene(){
+  if(!song || !song.scenes || !song.scenes.length) return null;
+  return song.scenes.find(s=>s.id===editSceneId) || song.scenes[0];
+}
+function sceneById(id){
+  if(!song || !song.scenes) return null;
+  return song.scenes.find(s=>s.id===id);
+}
 function markDirty(){ dirty = true; document.getElementById('saveState').textContent='ungesichert'; }
 function markClean(){ dirty = false; document.getElementById('saveState').textContent='gesichert'; }
 
@@ -3898,7 +3906,7 @@ const VIZ_MODES = [
   {id:'aurora',      name:'Nordlicht'},
   {id:'wasser',      name:'Wasser'},
   {id:'ringe',       name:'Jahresringe'},
-  {id:'schwarm',     name:'Schwarm'}
+  {id:'schwarm',     name:'Glühwürmchen im Glas'}
 ];
 const PALETTES = {
   prisma: {name:'Prisma',    base:0,   span:360, bg:'#05080f'},
@@ -3939,10 +3947,18 @@ document.getElementById('vizAutoBtn').addEventListener('click', e=>{
   e.target.textContent = 'Wechsel';
   e.target.classList.toggle('primary', vizAuto);
 });
+/* Eigene Vollbildansicht: die Browserfunktion gibt es auf iPhones nicht. */
+function vollbild(an){
+  vizCanvas.classList.toggle('voll', an);
+  document.body.classList.toggle('vollbild', an);
+  document.getElementById('vollRaus').classList.toggle('an', an);
+  setTimeout(resizeViz, 60);
+}
 document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
-  if(vizCanvas.requestFullscreen) vizCanvas.requestFullscreen();
-  setTimeout(resizeViz,220);
+  vollbild(!vizCanvas.classList.contains('voll'));
 });
+document.getElementById('vollRaus').addEventListener('click', ()=> vollbild(false));
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') vollbild(false); });
 document.getElementById('saveVizBtn').addEventListener('click', ()=>{
   const a=document.createElement('a');
   a.download='moosgrund-'+vizMode+'.png'; a.href=vizCanvas.toDataURL('image/png'); a.click();
@@ -3981,7 +3997,7 @@ const ripples=[], petals=[], blooms=[];
 
 function vizVisible(){
   return document.getElementById('panel-bild').classList.contains('active')
-      || document.fullscreenElement===vizCanvas;
+      || vizCanvas.classList.contains('voll');
 }
 
 function drawViz(){
@@ -4266,34 +4282,122 @@ function drawRinge(w,h,E){
   vctx.restore();
 }
 
-/* ---------- 7. Schwarm ---------- */
-const flock=[];
+/* ---------- 7. Glühwürmchen im Glas ---------- */
+const glas = [];
 function drawSchwarm(w,h,E){
-  fade(w,h,0.10);
-  const dpr=Math.min(window.devicePixelRatio||1,2);
-  while(flock.length<140){
-    flock.push({x:Math.random()*w, y:Math.random()*h,
-      vx:(Math.random()-0.5)*2, vy:(Math.random()-0.5)*2, hue:Math.random()});
+  fade(w,h,0.13);
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+
+  /* Glasmasse aus der Leinwand ableiten */
+  const gw = Math.min(w*0.72, h*0.92), gh = gw*0.82;
+  const gx = (w-gw)/2, gy = (h-gh)/2 + gh*0.05;
+  const r  = gh*0.14;                     // Eckenrundung
+  const innen = {x:gx+gw*0.06, y:gy+gh*0.08, w:gw*0.88, h:gh*0.84};
+
+  /* Tiere anlegen */
+  while(glas.length < 26){
+    glas.push({
+      x: innen.x + Math.random()*innen.w,
+      y: innen.y + Math.random()*innen.h,
+      vx:(Math.random()-0.5)*0.9, vy:(Math.random()-0.5)*0.9,
+      gr: 0.6 + Math.random()*0.9,        // Groesse = Tiefe im Glas
+      ph: Math.random()*Math.PI*2,
+      tempo: 0.5 + Math.random()
+    });
   }
-  const cx=w/2+Math.cos(vt*0.6)*w*0.22;
-  const cy=h/2+Math.sin(vt*0.9)*h*0.22;
-  const speed=0.7+E.rm*5.5;
+
+  vctx.save();
   vctx.globalCompositeOperation='lighter';
-  flock.forEach(p=>{
-    const dx=cx-p.x, dy=cy-p.y;
-    const d=Math.hypot(dx,dy)||1;
-    p.vx += (dx/d)*0.14 + (Math.random()-0.5)*0.5*(1+E.rh*2.2);
-    p.vy += (dy/d)*0.14 + (Math.random()-0.5)*0.5*(1+E.rh*2.2);
-    const v=Math.hypot(p.vx,p.vy)||1;
-    p.vx=(p.vx/v)*speed; p.vy=(p.vy/v)*speed;
-    const px=p.x, py=p.y;
-    p.x+=p.vx; p.y+=p.vy;
-    if(p.x<0)p.x+=w; if(p.x>w)p.x-=w;
-    if(p.y<0)p.y+=h; if(p.y>h)p.y-=h;
-    vctx.strokeStyle=col(p.hue+E.bright*0.3, 68, 0.40+E.rb*0.45);
-    vctx.lineWidth=(1+E.rb*3.2)*dpr;
-    vctx.beginPath(); vctx.moveTo(px,py); vctx.lineTo(p.x,p.y); vctx.stroke();
+
+  const schub = 0.35 + E.rm*1.6;
+  const blitz = E.hitB ? 1 : 0;
+
+  glas.forEach(f=>{
+    /* Taumeln statt geradeaus */
+    f.vx += (Math.random()-0.5)*0.16*schub;
+    f.vy += (Math.random()-0.5)*0.16*schub;
+    const v = Math.hypot(f.vx,f.vy) || 1;
+    const max = (0.5 + E.rm*2.2) * f.tempo;
+    f.vx = f.vx/v*max; f.vy = f.vy/v*max;
+    f.x += f.vx*dpr; f.y += f.vy*dpr;
+
+    /* an der Glaswand abprallen */
+    if(f.x < innen.x){ f.x = innen.x; f.vx = Math.abs(f.vx); }
+    if(f.x > innen.x+innen.w){ f.x = innen.x+innen.w; f.vx = -Math.abs(f.vx); }
+    if(f.y < innen.y){ f.y = innen.y; f.vy = Math.abs(f.vy); }
+    if(f.y > innen.y+innen.h){ f.y = innen.y+innen.h; f.vy = -Math.abs(f.vy); }
+
+    /* eigener Pulsschlag, beim Kick blitzen alle gemeinsam auf */
+    f.ph += 0.02 + f.tempo*0.012;
+    const eigen = 0.28 + 0.5*(0.5 + 0.5*Math.sin(f.ph));
+    const st = Math.min(1, eigen + blitz*0.7 + E.rb*0.3);
+
+    const rad = (7 + f.gr*13) * dpr * (0.85 + st*0.5);
+    const g = vctx.createRadialGradient(f.x,f.y,0,f.x,f.y,rad);
+    g.addColorStop(0,   'rgba(255,246,205,'+(0.5*st)+')');
+    g.addColorStop(0.25,'rgba(255,224,138,'+(0.32*st)+')');
+    g.addColorStop(0.6, 'rgba(255,206,74,'+(0.12*st)+')');
+    g.addColorStop(1,   'rgba(255,196,50,0)');
+    vctx.fillStyle=g;
+    vctx.beginPath(); vctx.arc(f.x,f.y,rad,0,Math.PI*2); vctx.fill();
+
+    vctx.fillStyle='rgba(255,250,220,'+(0.85*st)+')';
+    vctx.beginPath(); vctx.arc(f.x,f.y,1.1*f.gr*dpr,0,Math.PI*2); vctx.fill();
+
+    /* Spiegelung an der naechsten Glaswand */
+    const nahLinks = (f.x - innen.x) < innen.w*0.5;
+    const wx = nahLinks ? gx+gw*0.045 : gx+gw*0.955;
+    const naehe = 1 - Math.min(1, Math.abs(f.x-wx)/(innen.w*0.55));
+    if(naehe > 0.05){
+      const rg = vctx.createRadialGradient(wx,f.y,0,wx,f.y,rad*0.7);
+      rg.addColorStop(0,'rgba(255,228,150,'+(0.22*st*naehe)+')');
+      rg.addColorStop(1,'rgba(255,206,74,0)');
+      vctx.fillStyle=rg;
+      vctx.beginPath(); vctx.ellipse(wx,f.y,rad*0.28,rad*0.7,0,0,Math.PI*2); vctx.fill();
+    }
   });
+
+  /* Glas darueber zeichnen */
+  vctx.globalCompositeOperation='source-over';
+  vctx.beginPath();
+  vctx.moveTo(gx, gy+r);
+  vctx.lineTo(gx, gy+gh-r);
+  vctx.quadraticCurveTo(gx, gy+gh, gx+r, gy+gh);
+  vctx.lineTo(gx+gw-r, gy+gh);
+  vctx.quadraticCurveTo(gx+gw, gy+gh, gx+gw, gy+gh-r);
+  vctx.lineTo(gx+gw, gy+r);
+  vctx.strokeStyle='rgba(210,235,255,0.42)';
+  vctx.lineWidth=1.6*dpr;
+  vctx.stroke();
+
+  /* Deckel */
+  const lh = gh*0.10;
+  vctx.fillStyle='rgba(190,215,245,0.13)';
+  vctx.fillRect(gx-gw*0.02, gy-lh, gw*1.04, lh);
+  vctx.strokeStyle='rgba(210,235,255,0.5)';
+  vctx.lineWidth=1.3*dpr;
+  vctx.strokeRect(gx-gw*0.02, gy-lh, gw*1.04, lh);
+  for(let i=1;i<10;i++){
+    const lx = gx-gw*0.02 + (gw*1.04)*i/10;
+    vctx.beginPath(); vctx.moveTo(lx, gy-lh+2*dpr); vctx.lineTo(lx, gy-2*dpr);
+    vctx.strokeStyle='rgba(210,235,255,0.22)'; vctx.lineWidth=1*dpr; vctx.stroke();
+  }
+
+  /* Glanzbahnen */
+  vctx.strokeStyle='rgba(255,255,255,0.20)';
+  vctx.lineWidth=2.4*dpr;
+  vctx.beginPath();
+  vctx.moveTo(gx+gw*0.10, gy+gh*0.16);
+  vctx.quadraticCurveTo(gx+gw*0.055, gy+gh*0.45, gx+gw*0.07, gy+gh*0.80);
+  vctx.stroke();
+  vctx.strokeStyle='rgba(255,255,255,0.10)';
+  vctx.lineWidth=1.5*dpr;
+  vctx.beginPath();
+  vctx.moveTo(gx+gw*0.92, gy+gh*0.22);
+  vctx.quadraticCurveTo(gx+gw*0.95, gy+gh*0.5, gx+gw*0.93, gy+gh*0.75);
+  vctx.stroke();
+
+  vctx.restore();
 }
 
 drawViz();
