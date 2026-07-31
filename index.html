@@ -1095,7 +1095,7 @@
       <div class="btnrow even" style="margin-top:13px;">
         <button id="addBlockBtn">Abschnitt</button>
         <button id="fillSetBtn">6 Min füllen</button>
-        <button id="glaettenBtn">Takte glätten</button>
+        <button id="glaettenBtn">Übergänge glätten</button>
         <button id="modeBtn">Szene</button>
         <button id="folgeBtn" class="primary">Folgen</button>
       </div>
@@ -1254,7 +1254,7 @@ const masterLimiter = new Tone.Limiter(-1.5).toDestination();
 const masterComp = new Tone.Compressor({threshold:-14, ratio:3,
   attack:0.006, release:0.12, knee:8}).connect(masterLimiter);
 /* Gleichspannung und Infraschall abschneiden, das erzeugt sonst Knurren. */
-const masterHP = new Tone.Filter({type:'highpass', frequency:22, rolloff:-12}).connect(masterComp);
+const masterHP = new Tone.Filter({type:'highpass', frequency:30, rolloff:-24}).connect(masterComp);
 /* Übergangsweg: Filter und Blende wirken auf die ganze Mischung,
    damit ein Abschnitt weich in den nächsten übergehen kann. */
 const uebFilter = new Tone.Filter({type:'lowpass', frequency:20000, rolloff:-24}).connect(masterHP);
@@ -1301,11 +1301,12 @@ const DRUM_TRACKS = [
 /* Kickbass: Klick -> Saettigung -> Tiefenanhebung -> Kompressor -> Pegel
    Die Saettigung erzeugt Obertoene, damit der Bass auch auf kleinen
    Lautsprechern hoerbar bleibt, wo die Grundwelle fehlt. */
-const kickGain = new Tone.Gain(1).connect(masterGain);
-const kickComp = new Tone.Compressor({threshold:-20, ratio:4,
-  attack:0.004, release:0.14, knee:6}).connect(kickGain);
+const kickLimit = new Tone.Limiter(-4).connect(masterGain);
+const kickGain = new Tone.Gain(1).connect(kickLimit);
+const kickComp = new Tone.Compressor({threshold:-18, ratio:3,
+  attack:0.006, release:0.16, knee:10}).connect(kickGain);
 const kickShelf = new Tone.Filter({type:'lowshelf', frequency:110, gain:0}).connect(kickComp);
-const kickHP  = new Tone.Filter({type:'highpass', frequency:24, rolloff:-24}).connect(kickShelf);
+const kickHP  = new Tone.Filter({type:'highpass', frequency:32, rolloff:-24}).connect(kickShelf);
 const kickSat = new Tone.Distortion({distortion:0.06, oversample:'none'}).connect(kickHP);
 
 const kick = new Tone.MembraneSynth({pitchDecay:0.04, octaves:5,
@@ -1313,11 +1314,14 @@ const kick = new Tone.MembraneSynth({pitchDecay:0.04, octaves:5,
 kick.connect(kickSat); kick.volume.value = -2;
 
 /* zusaetzliche Sinus-Schicht fuer das Fundament unter 60 Hz */
+/* Die Subschicht klingt auf dem Grundton der Kick, nicht eine Oktave darunter.
+   Unter 30 Hz gibt ein Kopfhoerer keinen Schall mehr ab, treibt die Membran
+   aber an den Anschlag – das erzeugt genau das Kratzen. */
 const subGain = new Tone.Gain(0).connect(kickHP);
-const subOsc  = new Tone.Oscillator({frequency:45, type:'sine'}).connect(subGain).start();
-const subEnv  = new Tone.AmplitudeEnvelope({attack:0.004, decay:0.36,
-  sustain:0, release:0.12});
-subOsc.disconnect(); subOsc.connect(subEnv); subEnv.connect(subGain);
+const subEnv  = new Tone.AmplitudeEnvelope({attack:0.010, decay:0.34,
+  sustain:0, release:0.09});
+const subOsc  = new Tone.Oscillator({frequency:48, type:'sine'});
+subOsc.connect(subEnv); subEnv.connect(subGain); subOsc.start();
 
 /* Echte Schlagzeugaufnahmen; dieselben Quellen wie bei den Instrumenten. */
 const DRUM_BASES = [
@@ -1424,13 +1428,13 @@ function kickFreq(){ return 32 + (kickSettings().tiefe/100)*30; }   // 32–62 H
 function applyKick(){
   const k = kickSettings();
   kickGain.gain.rampTo(Tone.dbToGain(-8 + (k.druck/100)*12), 0.05);
-  kickShelf.gain.rampTo((k.druck/100)*9, 0.05);
-  kickSat.distortion = 0.03 + (k.druck/100)*0.30;
-  kickComp.threshold.rampTo(-14 - (k.druck/100)*14, 0.05);
+  kickShelf.gain.rampTo((k.druck/100)*5.5, 0.05);
+  kickSat.distortion = 0.02 + (k.druck/100)*0.14;
+  kickComp.threshold.rampTo(-12 - (k.druck/100)*10, 0.05);
   const dec = 0.16 + (k.laenge/100)*0.62;
   try{ kick.set({envelope:{decay:dec, release:dec}}); }catch(e){}
   subEnv.decay = dec * 1.15;
-  subGain.gain.rampTo((k.sub/100)*0.42, 0.05);
+  subGain.gain.rampTo((k.sub/100)*0.30, 0.05);
 }
 function kickNote(){
   const off = Math.round(-7 + (kickSettings().tiefe/100)*10);   // -7 .. +3 Halbtoene
@@ -1455,8 +1459,13 @@ function triggerKick(time){
     kick.triggerAttackRelease(f, '8n', time);
   }
   if(kickSettings().sub > 0){
-    subOsc.frequency.setValueAtTime(f*0.5, time);
-    subEnv.triggerAttackRelease(0.05, time);
+    /* Tonhoehe weich setzen: ein Sprung im laufenden Sinus knackt. */
+    try{
+      subOsc.frequency.cancelScheduledValues(time);
+      subOsc.frequency.setValueAtTime(subOsc.frequency.value, time);
+      subOsc.frequency.linearRampToValueAtTime(Math.max(34, f), time + 0.012);
+    }catch(e){ try{ subOsc.frequency.value = Math.max(34, f); }catch(e2){} }
+    subEnv.triggerAttackRelease(0.06, time);
   }
 }
 
@@ -3930,26 +3939,99 @@ document.getElementById('addBlockBtn').addEventListener('click', ()=>{
 document.getElementById('glaettenBtn').addEventListener('click', ()=>{
   if(!song.arrangement.length) return;
   let geaendert = 0;
+
+  /* 1. Gleiche Szene zweimal hintereinander? Zusammenlegen –
+        eine Naht, an der sich nichts ändert, stört den Fluss. */
+  for(let i=song.arrangement.length-2; i>=0; i--){
+    const a = song.arrangement[i], b = song.arrangement[i+1];
+    if(a.sceneId === b.sceneId && (a.uebergang||'keiner') === 'keiner'){
+      a.bars += b.bars;
+      a.uebergang = b.uebergang || 'keiner';
+      song.arrangement.splice(i+1,1);
+      geaendert++;
+    }
+  }
+
+  /* 2. Takte auf Phrasenlängen bringen */
   song.arrangement.forEach(blk=>{
     const alt = blk.bars;
     let neu = alt;
     if(alt >= 4){
-      neu = Math.round(alt/4)*4;                 // auf Viertakter runden
-      if(neu >= 16) neu = Math.round(neu/8)*8;   // ab 16 Takten auf Achttakter
+      neu = Math.round(alt/4)*4;
+      if(neu >= 16) neu = Math.round(neu/8)*8;
       neu = Math.max(4, neu);
     }
-    /* Für den gewählten Übergang muss genug Platz sein */
     const noetig = uebergangTakte(blk) * 2;
     if(blk.uebergang && blk.uebergang !== 'keiner' && neu < noetig){
       neu = Math.max(neu, Math.max(4, Math.round(noetig/4)*4));
     }
     if(neu !== alt){ blk.bars = neu; geaendert++; }
   });
-  markDirty(); renderArrangement();
+
+  /* 3. Melodien an den Nahtstellen anpassen */
+  const AKKORD = /^(E|G|B)/;
+  song.arrangement.forEach((blk,i)=>{
+    const art = blk.uebergang || 'keiner';
+    if(art === 'keiner') return;
+    const raus = sceneById(blk.sceneId);
+    const rein = song.arrangement[i+1] && sceneById(song.arrangement[i+1].sceneId);
+    if(!raus) return;
+
+    /* Abgehende Szene: die Phrase soll ruhen, nicht mitten im Satz abreißen */
+    (raus.layers||[]).forEach(L=>{
+      const gesetzt = [];
+      L.mel.forEach((n,k)=>{ if(n) gesetzt.push(k); });
+      if(!gesetzt.length) return;
+      const letzt = gesetzt[gesetzt.length-1];
+
+      /* Schlusston auf einen Akkordton legen */
+      if(!AKKORD.test(L.mel[letzt])){
+        const pos = MEL_SCALE.indexOf(L.mel[letzt]);
+        for(let r=1;r<=3 && pos>=0;r++){
+          for(const v of [pos-r, pos+r]){
+            const n = MEL_SCALE[v];
+            if(n && AKKORD.test(n)){ L.mel[letzt]=n; geaendert++; r=9; break; }
+          }
+        }
+      }
+      /* Ein Ton ganz am Taktende wird vom Übergang abgeschnitten –
+         einen Schritt vorziehen und dafür länger halten. */
+      if(letzt === 15 && !L.mel[14]){
+        L.mel[14] = L.mel[15]; L.melLen[14] = 2; L.melTo[14] = L.melTo[15];
+        L.mel[15] = null; L.melLen[15] = 1; L.melTo[15] = null;
+        geaendert++;
+      }
+    });
+
+    /* Ankommende Szene: klarer Einsatz auf der Eins */
+    if(rein && rein.id !== raus.id){
+      const hatKick = rein.drums.kick.some(Boolean);
+      if(hatKick && !rein.drums.kick[0]){ rein.drums.kick[0] = 1; geaendert++; }
+      const hatBass = rein.bass.some(Boolean);
+      if(hatBass && !rein.bass[0]){
+        const ton = rein.bass.find(Boolean);
+        rein.bass[0] = ton; rein.bassLen[0] = 1; geaendert++;
+      }
+      /* Bei verzahntem Übergang die Eins der Melodie sichern */
+      if(art === 'verzahnt'){
+        const L0 = (rein.layers||[])[0];
+        if(L0 && L0.mel.some(Boolean) && !L0.mel[0]){
+          const erst = L0.mel.findIndex(Boolean);
+          if(erst > 0 && erst <= 3){
+            L0.mel[0] = L0.mel[erst]; L0.melLen[0] = L0.melLen[erst]; L0.melTo[0] = L0.melTo[erst];
+            L0.mel[erst] = null; L0.melLen[erst] = 1; L0.melTo[erst] = null;
+            geaendert++;
+          }
+        }
+      }
+    }
+  });
+
+  markDirty(); refreshAllEditors(); renderArrangement();
   const el = document.getElementById('setLength');
   if(el && geaendert){
     el.style.color = 'var(--led-lime)';
-    setTimeout(()=>{ el.style.color=''; }, 1200);
+    setTimeout(()=>{ el.style.color=''; }, 1400);
   }
 });
 
@@ -4774,6 +4856,8 @@ function drawSchwarm(w,h,E){
       takt: 3 + Math.random()*4,
       uhr: Math.random()*5,
       blitz: Math.random()*0.4,
+      tau: Math.random()*Math.PI*2,          // Taumelphase
+      tauT: 0.055 + Math.random()*0.05,      // Taumelgeschwindigkeit
       spur: []
     });
   }
@@ -4809,9 +4893,17 @@ function drawSchwarm(w,h,E){
     f.vx += (zx/zd)*lenk + (Math.random()-0.5)*0.30;
     f.vy += (zy/zd)*lenk + (Math.random()-0.5)*0.30 - f.blitz*0.22;
     const v = Math.hypot(f.vx,f.vy) || 1;
-    const max = (1.9 + E.rm*2.6) * (0.65 + f.gr*0.7);
+    /* Tempo schwankt: mal schießen sie vor, mal gleiten sie */
+    f.tau += f.tauT;
+    const schwung = 0.55 + 0.45*Math.sin(f.tau*0.7);
+    const max = (1.9 + E.rm*2.6) * (0.65 + f.gr*0.7) * schwung;
     f.vx = f.vx/v*max; f.vy = f.vy/v*max;
-    f.x += f.vx*dpr; f.y += f.vy*dpr;
+
+    /* Taumeln: seitlich zur Flugrichtung ausschwingen */
+    const ri = Math.atan2(f.vy, f.vx);
+    const taumel = Math.sin(f.tau*1.9) * (1.1 + f.gr*0.9) * dpr;
+    f.x += f.vx*dpr - Math.sin(ri)*taumel;
+    f.y += f.vy*dpr + Math.cos(ri)*taumel;
     const rand = 24*dpr;
     if(f.x < -rand) f.x = w+rand;
     if(f.x > w+rand) f.x = -rand;
@@ -4819,7 +4911,8 @@ function drawSchwarm(w,h,E){
     if(f.y > h+rand) f.y = -rand;
 
     f.fl += 1.1;
-    const winkel = Math.atan2(f.vy, f.vx);
+    /* Der Körper kippt beim Taumeln, statt starr in Flugrichtung zu zeigen */
+    const winkel = Math.atan2(f.vy, f.vx) + Math.sin(f.tau*1.9 + 0.6)*0.42;
     const u = (2.0 + f.gr*1.6) * dpr;     // Grundmaß wie im Kopfbild
     const hx = f.x - Math.cos(winkel)*u*1.5;
     const hy = f.y - Math.sin(winkel)*u*1.5;
@@ -4864,27 +4957,30 @@ function drawSchwarm(w,h,E){
     vctx.save(); vctx.translate(-u*0.1,  u*0.9*flat); vctx.rotate(0.42);
     vctx.beginPath(); vctx.ellipse(0,0,u*2.0,u*0.85,0,0,Math.PI*2); vctx.fill(); vctx.restore();
 
-    /* Hinterleib als Tropfenform nach hinten */
-    vctx.fillStyle='#241f16';
-    vctx.beginPath();
-    vctx.moveTo(u*0.4,  u*1.1);
-    vctx.quadraticCurveTo(u*0.4, -u*1.1, -u*0.1, -u*1.1);
-    vctx.quadraticCurveTo(-u*3.2, -u*0.4, -u*2.4, 0);
-    vctx.quadraticCurveTo(-u*3.2, u*0.4, -u*0.1, u*1.1);
-    vctx.closePath(); vctx.fill();
+    /* Hinterleib: kurz und rund statt lang und spitz */
+    vctx.fillStyle='#2b2419';
+    vctx.beginPath(); vctx.ellipse(-u*0.85, 0, u*1.75, u*1.30, 0, 0, Math.PI*2); vctx.fill();
+    vctx.fillStyle='rgba(255,247,214,0.10)';
+    vctx.beginPath(); vctx.ellipse(-u*1.0, -u*0.35, u*1.15, u*0.5, 0, 0, Math.PI*2); vctx.fill();
 
-    vctx.fillStyle='#3a2f1c';
-    vctx.beginPath(); vctx.ellipse(u*1.0, 0, u*1.0, u*1.15, 0, 0, Math.PI*2); vctx.fill();
-    vctx.fillStyle='#1b1a16';
-    vctx.beginPath(); vctx.ellipse(u*2.1, 0, u*0.7, u*0.85, 0, 0, Math.PI*2); vctx.fill();
+    /* Halsschild breit und weich */
+    vctx.fillStyle='#43351f';
+    vctx.beginPath(); vctx.ellipse(u*0.95, 0, u*1.05, u*1.25, 0, 0, Math.PI*2); vctx.fill();
+
+    /* Kopf groß und rund – das macht sie freundlich */
+    vctx.fillStyle='#211d18';
+    vctx.beginPath(); vctx.ellipse(u*2.0, 0, u*1.0, u*1.05, 0, 0, Math.PI*2); vctx.fill();
+    vctx.fillStyle='rgba(255,255,255,0.16)';
+    vctx.beginPath(); vctx.ellipse(u*2.25, -u*0.35, u*0.34, u*0.26, 0, 0, Math.PI*2); vctx.fill();
+    vctx.beginPath(); vctx.ellipse(u*2.25,  u*0.35, u*0.34, u*0.26, 0, 0, Math.PI*2); vctx.fill();
 
     /* Leuchtorgan am Hinterleibsende */
     vctx.globalCompositeOperation='lighter';
     vctx.globalAlpha = 0.35 + st*0.65;
-    vctx.fillStyle = licht(-u*1.5, 0, u*2.6, 1);
-    vctx.beginPath(); vctx.ellipse(-u*1.5, 0, u*2.6, u*2.0, 0, 0, Math.PI*2); vctx.fill();
-    vctx.fillStyle='rgba(255,249,210,'+(0.55+st*0.45)+')';
-    vctx.beginPath(); vctx.ellipse(-u*1.5, 0, u*1.15, u*0.9, 0, 0, Math.PI*2); vctx.fill();
+    vctx.fillStyle = licht(-u*1.75, 0, u*3.0, 1);
+    vctx.beginPath(); vctx.ellipse(-u*1.75, 0, u*3.0, u*2.4, 0, 0, Math.PI*2); vctx.fill();
+    vctx.fillStyle='rgba(255,250,216,'+(0.55+st*0.45)+')';
+    vctx.beginPath(); vctx.ellipse(-u*1.75, 0, u*1.30, u*1.05, 0, 0, Math.PI*2); vctx.fill();
     vctx.globalAlpha = 1;
 
     vctx.restore();
