@@ -1095,6 +1095,7 @@
       <div class="btnrow even" style="margin-top:13px;">
         <button id="addBlockBtn">Abschnitt</button>
         <button id="fillSetBtn">6 Min füllen</button>
+        <button id="glaettenBtn">Takte glätten</button>
         <button id="modeBtn">Szene</button>
         <button id="folgeBtn" class="primary">Folgen</button>
       </div>
@@ -1266,6 +1267,16 @@ const UEBERGAENGE = {
   blende:  'Ausblenden',
   verzahnt:'Verzahnt'
 };
+/* Wie viele Takte soll der Übergang dauern?
+   Ein kurzer Abschnitt braucht einen kurzen, ein langer einen langen. */
+function uebergangTakte(blk){
+  const art = blk.uebergang || 'keiner';
+  const b = blk.bars || 1;
+  if(art === 'filter')   return Math.max(1, Math.min(4, Math.round(b/8)));
+  if(art === 'blende')   return Math.max(1, Math.min(2, Math.round(b/12)));
+  if(art === 'verzahnt') return Math.max(1, Math.min(2, Math.round(b/16)));
+  return 0;
+}
 function uebergangZuruecksetzen(zeit){
   try{
     uebFilter.frequency.cancelScheduledValues(zeit);
@@ -2505,36 +2516,38 @@ Tone.Transport.scheduleRepeat((time)=>{
     const restTakte = blk.bars - imBlock;
     const sekProTakt = (60 / (scene.bpm || song.bpm || 126)) * 4;
 
+    const uT = uebergangTakte(blk);
     if(step === 0){
-      if(art === 'filter' && restTakte === 2){
+      if(art === 'filter' && restTakte === uT){
         try{
           uebFilter.frequency.cancelScheduledValues(time);
           uebFilter.frequency.setValueAtTime(20000, time);
-          uebFilter.frequency.exponentialRampToValueAtTime(420, time + sekProTakt*2);
+          uebFilter.frequency.exponentialRampToValueAtTime(420, time + sekProTakt*uT);
         }catch(e){}
       }
-      if(art === 'blende' && restTakte === 1){
+      if(art === 'blende' && restTakte === uT){
         try{
           uebGain.gain.cancelScheduledValues(time);
           uebGain.gain.setValueAtTime(1, time);
-          uebGain.gain.linearRampToValueAtTime(0.25, time + sekProTakt);
+          uebGain.gain.linearRampToValueAtTime(0.25, time + sekProTakt*uT);
         }catch(e){}
       }
       if(imBlock === 0){
         /* Anfang eines Abschnitts: Übergang des Vorgängers auflösen */
         const vor = song.arrangement[blockIdx-1];
         const vorArt = vor && vor.uebergang;
+        const oeffnen = vor ? Math.max(1, Math.round(uebergangTakte(vor)/2)) : 1;
         if(vorArt === 'filter'){
           try{
             uebFilter.frequency.cancelScheduledValues(time);
             uebFilter.frequency.setValueAtTime(420, time);
-            uebFilter.frequency.exponentialRampToValueAtTime(20000, time + sekProTakt);
+            uebFilter.frequency.exponentialRampToValueAtTime(20000, time + sekProTakt*oeffnen);
           }catch(e){}
         } else if(vorArt === 'blende'){
           try{
             uebGain.gain.cancelScheduledValues(time);
             uebGain.gain.setValueAtTime(0.25, time);
-            uebGain.gain.linearRampToValueAtTime(1, time + sekProTakt*0.75);
+            uebGain.gain.linearRampToValueAtTime(1, time + sekProTakt*oeffnen*0.8);
           }catch(e){}
         } else {
           uebergangZuruecksetzen(time);
@@ -2542,8 +2555,8 @@ Tone.Transport.scheduleRepeat((time)=>{
       }
     }
 
-    /* Verzahnt: im letzten Takt klingt die kommende Szene schon mit */
-    if(art === 'verzahnt' && restTakte === 1){
+    /* Verzahnt: in den letzten Takten klingt die kommende Szene schon mit */
+    if(art === 'verzahnt' && restTakte <= uT){
       const naechster = song.arrangement[blockIdx+1];
       const kommt = naechster && sceneById(naechster.sceneId);
       if(kommt && kommt.id !== scene.id){
@@ -2563,7 +2576,27 @@ Tone.Transport.scheduleRepeat((time)=>{
   if(step === 0){
     const ziel = scene.bpm || song.bpm;
     if(Math.abs(Tone.Transport.bpm.value - ziel) > 0.2){
-      Tone.Transport.bpm.setValueAtTime(ziel, time);
+      /* Bei gesetztem Übergang das Tempo über einen Takt ziehen statt springen */
+      let weich = false;
+      if(playMode === 'set' && blockIdx > 0){
+        const vor = song.arrangement[blockIdx-1];
+        let anf = 0;
+        for(let i=0;i<blockIdx;i++) anf += song.arrangement[i].bars;
+        weich = (bar === anf) && vor && vor.uebergang && vor.uebergang !== 'keiner';
+      }
+      let fertig = false;
+      if(weich){
+        try{
+          const sek = (60 / Tone.Transport.bpm.value) * 4;
+          if(Tone.Transport.bpm.cancelScheduledValues) Tone.Transport.bpm.cancelScheduledValues(time);
+          Tone.Transport.bpm.setValueAtTime(Tone.Transport.bpm.value, time);
+          Tone.Transport.bpm.linearRampToValueAtTime(ziel, time + sek);
+          fertig = true;
+        }catch(e){ fertig = false; }
+      }
+      if(!fertig){
+        try{ Tone.Transport.bpm.setValueAtTime(ziel, time); }catch(e){}
+      }
     }
   }
 
@@ -3891,6 +3924,35 @@ function seekToFraction(f){
 document.getElementById('addBlockBtn').addEventListener('click', ()=>{
   song.arrangement.push({sceneId:editSceneId, bars:16}); markDirty(); renderArrangement();
 });
+/* Abschnitte auf musikalische Phrasenlängen bringen.
+   Vier- und Achttakter sind das Maß, in dem Hörer Musik gliedern –
+   Übergänge fallen dadurch auf natürliche Zäsuren. */
+document.getElementById('glaettenBtn').addEventListener('click', ()=>{
+  if(!song.arrangement.length) return;
+  let geaendert = 0;
+  song.arrangement.forEach(blk=>{
+    const alt = blk.bars;
+    let neu = alt;
+    if(alt >= 4){
+      neu = Math.round(alt/4)*4;                 // auf Viertakter runden
+      if(neu >= 16) neu = Math.round(neu/8)*8;   // ab 16 Takten auf Achttakter
+      neu = Math.max(4, neu);
+    }
+    /* Für den gewählten Übergang muss genug Platz sein */
+    const noetig = uebergangTakte(blk) * 2;
+    if(blk.uebergang && blk.uebergang !== 'keiner' && neu < noetig){
+      neu = Math.max(neu, Math.max(4, Math.round(noetig/4)*4));
+    }
+    if(neu !== alt){ blk.bars = neu; geaendert++; }
+  });
+  markDirty(); renderArrangement();
+  const el = document.getElementById('setLength');
+  if(el && geaendert){
+    el.style.color = 'var(--led-lime)';
+    setTimeout(()=>{ el.style.color=''; }, 1200);
+  }
+});
+
 document.getElementById('fillSetBtn').addEventListener('click', ()=>{
   let guard=0;
   while(totalBars()*barSeconds() < 360 && guard<200){
