@@ -504,7 +504,8 @@
     box-shadow .1s, background .1s;}
 
   /* ---------- piano roll ---------- */
-  .roll{border:none;border-radius:0;background:transparent;overflow:visible;touch-action:pan-y;}
+  .roll{border:none;border-radius:0;background:transparent;overflow:visible;
+    touch-action:none;-webkit-user-select:none;user-select:none;}
   .roll-row{display:grid;grid-template-columns:44px repeat(16,1fr);gap:3px;
     align-items:center;margin-bottom:3px;}
   .roll-note{font-family:'IBM Plex Mono',monospace;font-size:0.55rem;color:var(--ink-faint);
@@ -512,6 +513,7 @@
     letter-spacing:0.04em;}
   .roll-note.root{color:var(--ink-soft);font-weight:500;}
   .roll-cell{position:relative;height:clamp(11px,3.9vw,19px);border-radius:50%;
+    touch-action:none;
     border:1px solid rgba(255,255,255,0.30);
     background:rgba(255,255,255,0.02);cursor:pointer;padding:0;min-width:0;
     transition:box-shadow .1s, background .1s;}
@@ -519,9 +521,11 @@
   .roll-cell.lit{border-color:transparent;box-shadow:0 0 5px currentColor,0 0 11px currentColor;}
   .roll-cell.playcol{outline:1px solid rgba(232,236,250,0.75);outline-offset:2px;}
   /* Bruecke zwischen zusammenhaengenden Schritten */
-  .roll-cell.verbunden::before{content:'';position:absolute;left:-5px;top:50%;
-    width:7px;height:42%;transform:translateY(-50%);background:currentColor;
-    box-shadow:0 0 6px currentColor;border-radius:1px;pointer-events:none;}
+  .roll-cell.verbunden::before{content:'';position:absolute;left:50%;top:50%;
+    width:var(--bw,10px);height:3px;margin-top:-1.5px;
+    transform:rotate(var(--ba,180deg));transform-origin:0 50%;
+    background:currentColor;box-shadow:0 0 6px currentColor;
+    border-radius:2px;pointer-events:none;}
   .roll-cell.ziehen{outline:1px dashed rgba(255,255,255,0.7);outline-offset:2px;}
 
   /* ---------- keyboard ---------- */
@@ -1947,10 +1951,19 @@ function playGlide(layer, vonNote, nachNote, dur, time, vel){
   const a = shiftNote(vonNote,  oct*12 + (v.def.shift||0));
   const b = shiftNote(nachNote, oct*12 + (v.def.shift||0));
 
+  /* Die Aufnahme gibt den Ansatz und die Klangfarbe: sie erklingt kurz
+     auf dem Anfangston. Den wandernden Teil traegt die Klangerzeugung,
+     denn ein Sample laesst sich nicht stufenlos verstimmen. */
+  if(v.sampler && v.ready){
+    try{ v.sampler.triggerAttackRelease(a, Math.min(dur, 0.22), time, vel*0.85); }catch(e){}
+  }
+
   if(!v.glide){
     try{
-      v.glide = new (v.def.voice || Tone.Synth)(v.def.opts || {});
-      v.glide.volume.value = (v.def.vol === undefined ? -12 : v.def.vol) + 2;
+      const Bau = v.def.voice || Tone.Synth;
+      v.glide = new Bau(v.def.opts || {});
+      /* Am Pegel der Aufnahme ausrichten, sonst sticht der Ton heraus. */
+      v.glide.volume.value = (v.def.vol === undefined ? -12 : v.def.vol) - 3;
       v.glide.connect(v.ziel || v.chain.filter);
     }catch(e){ v.glide = null; }
   }
@@ -1959,11 +1972,20 @@ function playGlide(layer, vonNote, nachNote, dur, time, vel){
   try{
     const fa = Tone.Frequency(a).toFrequency();
     const fb = Tone.Frequency(b).toFrequency();
-    v.glide.triggerAttack(a, time, vel);
+    if(!(fa > 0) || !(fb > 0)) throw new Error('Tonhoehe');
+
+    /* Vorherigen Verlauf beenden, sonst ueberlagern sich die Rampen. */
+    try{ v.glide.triggerRelease(time); }catch(e){}
+    v.glide.frequency.cancelScheduledValues(time);
+
+    /* Leiser Einsatz, damit der Ansatz von der Aufnahme kommt. */
+    v.glide.triggerAttack(a, time, vel*0.55);
     v.glide.frequency.setValueAtTime(fa, time);
-    v.glide.frequency.exponentialRampToValueAtTime(fb, time + Math.max(0.05, dur*0.9));
+    v.glide.frequency.exponentialRampToValueAtTime(fb, time + Math.max(0.08, dur*0.85));
     v.glide.triggerRelease(time + dur);
-  }catch(e){}
+  }catch(e){
+    playLayerNote(layer, vonNote, dur, time, vel);
+  }
 }
 
 function playLayerNote(layer, note, dur, time, vel){
@@ -2761,26 +2783,30 @@ function setzeNote(arr, lenArr, step, note, len, toArr, ziel){
 }
 /* Alle belegten Felder einer Ebene, auch schraege Verlaeufe.
    Rueckgabe: Schluessel "Ton|Schritt" -> 1 Anfang, 2 Fortsetzung. */
-function belegung(mel, len, to, skala){
-  const m = {};
+function pfade(mel, len, to, skala){
+  const alle = [];
   for(let i=0;i<STEPS;i++){
     if(!mel[i]) continue;
     const l = Math.max(1, (len && len[i]) || 1);
     const ziel = to && to[i];
-    if(ziel && ziel !== mel[i]){
-      const ia = skala.indexOf(mel[i]), ib = skala.indexOf(ziel);
-      if(ia >= 0 && ib >= 0){
-        for(let k=0;k<l && i+k<STEPS;k++){
-          const t = l>1 ? k/(l-1) : 0;
-          const idx = Math.round(ia + (ib-ia)*t);
-          const note = skala[Math.max(0, Math.min(skala.length-1, idx))];
-          m[note+'|'+(i+k)] = k===0 ? 1 : 2;
-        }
-        continue;
-      }
+    const ia = skala.indexOf(mel[i]);
+    const ib = (ziel && ziel !== mel[i]) ? skala.indexOf(ziel) : ia;
+    const p = [];
+    for(let k=0;k<l && i+k<STEPS;k++){
+      const t = l>1 ? k/(l-1) : 0;
+      const idx = (ia>=0 && ib>=0) ? Math.round(ia + (ib-ia)*t) : ia;
+      const note = (idx>=0 && idx<skala.length) ? skala[idx] : mel[i];
+      p.push({step:i+k, note:note});
     }
-    for(let k=0;k<l && i+k<STEPS;k++) m[mel[i]+'|'+(i+k)] = k===0 ? 1 : 2;
+    if(p.length) alle.push(p);
   }
+  return alle;
+}
+function belegung(mel, len, to, skala){
+  const m = {};
+  pfade(mel, len, to, skala).forEach(p=>{
+    p.forEach((z,k)=>{ m[z.note+'|'+z.step] = k===0 ? 1 : 2; });
+  });
   return m;
 }
 
@@ -2981,7 +3007,7 @@ function buildRoll(containerId, scale, cellClass){
     for(let s=0;s<STEPS;s++){
       const cell=document.createElement('button');
       cell.className='roll-cell '+cellClass+(s%4===0?' beatline':'');
-      cell.dataset.note=note; cell.dataset.step=s;
+      cell.dataset.note=note; cell.dataset.step=s; cell.dataset.ri=ri;
       row.appendChild(cell);
     }
     el.appendChild(row);
@@ -3086,11 +3112,42 @@ rollBedienung('melcell', ()=>{
   return {arr: L.mel, lenArr: L.melLen, toArr: L.melTo};
 }, MEL_SCALE);
 
+/* Bruecken zwischen den Feldern eines Tons ausrichten – auch schraeg. */
+function bruecken(cellClass, pfadListe){
+  document.querySelectorAll('.'+cellClass).forEach(c=>{
+    c.style.removeProperty('--bw');
+    c.style.removeProperty('--ba');
+  });
+  const probe = document.querySelector('.'+cellClass);
+  if(!probe) return;
+  const bw = probe.offsetWidth  || 14;
+  const bh = probe.offsetHeight || 14;
+  const dx = bw + 3;                 // Abstand der Spalten
+  const rh = bh + 3;                 // Abstand der Reihen
+
+  pfadListe.forEach(p=>{
+    for(let k=1;k<p.length;k++){
+      const el = document.querySelector('.'+cellClass+'[data-step="'+p[k].step+'"][data-note="'+
+                 (window.CSS && CSS.escape ? CSS.escape(p[k].note) : p[k].note)+'"]');
+      const vor = document.querySelector('.'+cellClass+'[data-step="'+p[k-1].step+'"][data-note="'+
+                 (window.CSS && CSS.escape ? CSS.escape(p[k-1].note) : p[k-1].note)+'"]');
+      if(!el || !vor) continue;
+      const dRi = Number(vor.dataset.ri) - Number(el.dataset.ri);   // Reihenversatz
+      const dy = dRi * rh;
+      const laenge = Math.hypot(dx, dy);
+      const winkel = Math.atan2(dy, -dx) * 180 / Math.PI;
+      el.style.setProperty('--bw', laenge.toFixed(1)+'px');
+      el.style.setProperty('--ba', winkel.toFixed(1)+'deg');
+    }
+  });
+}
+
 function refreshRolls(){
   const sc=editScene();
   if(!sc) return;
   if(!Array.isArray(sc.bassLen)) sc.bassLen = new Array(STEPS).fill(1);
 
+  const bPfade = pfade(sc.bass, sc.bassLen, null, BASS_SCALE);
   const bBel = belegung(sc.bass, sc.bassLen, null, BASS_SCALE);
   document.querySelectorAll('.basscell').forEach(c=>{
     const st=Number(c.dataset.step);
@@ -3103,6 +3160,7 @@ function refreshRolls(){
 
   const L = editLayer();
   const others = (sc.layers||[]).filter(x=>L && x.id!==L.id);
+  const mPfade = L ? pfade(L.mel, L.melLen, L.melTo, MEL_SCALE) : [];
   const aktivBel = L ? belegung(L.mel, L.melLen, L.melTo, MEL_SCALE) : {};
   const fremdBel = others.map(x=>belegung(x.mel, x.melLen, x.melTo, MEL_SCALE));
   document.querySelectorAll('.melcell').forEach(c=>{
@@ -3116,6 +3174,9 @@ function refreshRolls(){
     c.classList.toggle('verbunden', d===2);
     c.classList.toggle('ghost', !!ghost);
   });
+
+  bruecken('basscell', bPfade);
+  bruecken('melcell',  mPfade);
 }
 
 let editLayerId = null;
